@@ -15,14 +15,16 @@ import signal
 
 ## Constants ##################################################################
 
+SERVERSTART_WAIT        = 1             # Time to wait for server to start
+TRANSFER_WAIT           = 5             # Time to wait for data transfers
 PROCESS_STOP_TIMEOUT    = 10            # Time to wait for program to stop
 
 ## Global Variables ###########################################################
 
 # Argument defaults
-server          = "localhost:5000"      # Address:port of server
+server          = "localhost:5000"      # host:port of server
 interface       = "localhost:5000"      # Interface for sever to bind to
-src_dir      = "Source"              # Name of directory to synchronise from
+src_dir         = "Source"              # Name of directory to synchronise from
 dest_dir        = "Destination"         # Name of directory to synchronise to
 def_dest_dir    = "Storage"             # Default directory used by server
 
@@ -30,6 +32,7 @@ def_dest_dir    = "Storage"             # Default directory used by server
 args        = None
 client_proc = None
 server_proc = None
+run         = 0
 passed      = 0
 failed      = 0
 
@@ -85,7 +88,12 @@ def StartServer(addrport, dstdir):
         command.append(dstdir)
 
     print("Starting %s" % " ".join(command))
-    return subprocess.Popen(command)
+    ret = subprocess.Popen(command)
+
+    # Wait for server to start before starting client
+    time.sleep(SERVERSTART_WAIT);
+
+    return ret
 
 
 # Description : Stops running programs by sending Ctrl+C and waits
@@ -103,10 +111,10 @@ def StopProgram(proc):
 
 # Description : Creates a test file
 # Parameters  : string name - file NameError
-#               size        - file size in KiB or None to default to 1KiB
+#               size        - file size in KiB or None to default to 1024KiB
 # Returns     : None
-def CreateFile(name, size=1):
-    # 1K block of dataaaa
+def CreateFile(name, size=1024):
+    # 1K block of dataaaaTRANSFER_WAIT
     data = "." * 1024
 
     with open(name, "w") as f:
@@ -140,12 +148,11 @@ def IsFileSame(file1, file2):
 ## Test Functions #############################################################
 
 def Test1():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 1 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 1 ==========")
     print("Server started with no directory parameter creates the default Strorage directory")
     try:
         server_proc = StartServer(None, None)
-        time.sleep(1)   # Wait for startup
         if os.path.isdir(def_dest_dir):
             print("PASS: directory created")
             passed += 1
@@ -159,14 +166,15 @@ def Test1():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
+
 
 def Test2():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 2 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 2 ==========")
     print("Server started with directory parameter creates the directory")
     try:
         server_proc = StartServer(None, args.dest_dir)
-        time.sleep(2)   # Wait for startup
         if os.path.isdir(args.dest_dir):
             print("PASS: directory created")
             passed += 1
@@ -178,14 +186,16 @@ def Test2():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
+
 
 def Test3():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 3 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 3 ==========")
     print("Client started with invalid directory fails")
     try:
         client_proc = StartClient(None, "dummy")
-        time.sleep(1)   # Wait for startup
+        time.sleep(1) # Wait for client
         if client_proc.poll() == 1:
             print("PASS: directory created")
             passed += 1
@@ -197,11 +207,12 @@ def Test3():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
 
 
 def Test4():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 4 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 4 ==========")
     print("Client with file and directories in source only")
     CreateTestFiles()
     try:
@@ -209,7 +220,8 @@ def Test4():
             server_proc = StartServer(None, args.dest_dir)
 
         client_proc = StartClient(None, args.src_dir)
-        time.sleep(5)   # Wait for startup
+
+        time.sleep(TRANSFER_WAIT)   # Wait for transfer
 
         ok = True
 
@@ -234,11 +246,12 @@ def Test4():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
 
 
 def Test5():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 5 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 5 ==========")
     print("Create new files and directories")
     try:
         new_files = [ "NewFile1", os.path.join("ExistingDir1", "NewFile2") ]
@@ -250,7 +263,7 @@ def Test5():
         for dir in new_dirs:
             os.makedirs(os.path.join(args.src_dir, dir))
 
-        time.sleep(2)
+        time.sleep(TRANSFER_WAIT)
 
         ok = True
 
@@ -276,17 +289,18 @@ def Test5():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
 
 
 def Test6():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 6 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 6 ==========")
     print("Delete files and directories")
     try:
         os.remove(os.path.join(args.src_dir, test_files[0]))
         shutil.rmtree(os.path.join(args.src_dir, test_dirs[0]))
 
-        time.sleep(2)
+        time.sleep(TRANSFER_WAIT)
 
         if os.path.isfile(os.path.join(args.dest_dir, test_files[0])):
             print("FAIL: failed to remove file: %s" % test_files[0])
@@ -301,11 +315,12 @@ def Test6():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
 
 
 def Test7():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 7 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 7 ==========")
     print("Modify a file")
     try:
         # touch the file to change modification time
@@ -313,7 +328,7 @@ def Test7():
         remotefile = os.path.join(args.dest_dir, test_files[1])
         os.utime(localfile, None)
 
-        time.sleep(2)
+        time.sleep(TRANSFER_WAIT)
 
         if IsFileSame(localfile, remotefile):
             print("PASS: file updated: %s" % test_files[1])
@@ -325,11 +340,12 @@ def Test7():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
 
 
 def Test8():
-    global client_proc, server_proc, passed, failed
-    print("=== Test 8 ==========")
+    global client_proc, server_proc, run, passed, failed
+    print("========== Test 8 ==========")
     print("Rename files and directoris")
     try:
         # touch the file to change modification time
@@ -342,7 +358,7 @@ def Test8():
         for oldname, newname in renames:
             os.rename(os.path.join(args.src_dir, oldname), os.path.join(args.src_dir, newname))
 
-        time.sleep(2)
+        time.sleep(TRANSFER_WAIT)
 
         ok = True
 
@@ -366,6 +382,7 @@ def Test8():
     except OSError as e:
         print("FAIL: Exception %s" % str(e))
         failed += 1
+    run += 1
 
 
 ## Main #######################################################################
@@ -373,7 +390,7 @@ def Test8():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Directory Synchronisation Test")
     parser.add_argument("-t", "--test", type=int,   default=0,          help="Test number to run, defaults to all tests")
-    parser.add_argument("-s", "--server",           default=server,     help="Server address:port, defaults to "+server)
+    parser.add_argument("-s", "--server",           default=server,     help="Server host:port, defaults to "+server)
     parser.add_argument("-i", "--interface",        default=interface,  help="Interface to bind to, defaults to "+interface)
     parser.add_argument("src_dir",      nargs='?',  default=src_dir,    help="directory to synchronise from, defaults to "+src_dir)
     parser.add_argument("dest_dir",     nargs='?',  default=dest_dir,   help="directory to synchronise to, defaults to "+dest_dir)
@@ -432,7 +449,8 @@ if __name__ == '__main__':
         StopProgram(client_proc)
         StopProgram(server_proc)
 
-    print("=== Summary ==========")
+    print("========== Summary ==========")
+    print("Run    : %d" % run)
     print("Passed : %d" % passed)
     print("Failed : %d" % failed)
 

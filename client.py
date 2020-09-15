@@ -10,16 +10,19 @@ import sys
 import time
 import argparse
 import shutil
+import requests
+import urllib.parse
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 ## Constants ##################################################################
 
 POLL_TIME   = 10                # Interval to poll main thread
+API = "/api/v1.0/"              # API url prefix
 
 ## Global Variables ###########################################################
 
-server    = "localhost:5000"    # DirSync serve address:port
+server    = "localhost:5000"    # DirSync serve host:port
 directory = ""                  # directory to synchronise
 
 ## Classes ####################################################################
@@ -71,26 +74,26 @@ class Handler(FileSystemEventHandler):
 
 ## Functions ##################################################################
 
-# Description : Returns string for type of object
-# Parameters  : bool isDir      - True if directory, False if File
-# Returns     : string
-def FileOrDir(isDir):
-    return
-
-
 # Description : Checks a directory exists on the server
 # Parameters  : string dirname  - directory name
 # Returns     : bool            - True if Exists
 def DirExists(dirname):
-    return os.path.isdir(os.path.join("Destination", dirname))
+    response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname))
+    if response.ok:
+        return True
+    elif response.status_code == 404:
+        return False
+    else:
+        response.raise_for_status()
 
 
 # Description : Checks a file is identical on the serber
 # Parameters  : string dirname  - directory name
 # Returns     : None
 def CreateDir(dirname):
-    print("Server: Creating directory: %s" % dirname)
-    os.makedirs(os.path.join("Destination", dirname))
+    response = requests.post(server+API+"createdir/"+urllib.parse.quote(dirname))
+    if not response.ok:
+        response.raise_for_status()
 
 
 # Description : Checks if a file exists and is identical on the server
@@ -167,11 +170,11 @@ def SyncDirectory(dirname):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Directory Synchronisation Client")
-    parser.add_argument("-s", "--server", default=server,  help="Server address:port, defaults to "+server)
+    parser.add_argument("-s", "--server", default=server,  help="Server host:port, defaults to "+server)
     parser.add_argument("directory",                       help="directory to synchronise")
     args = parser.parse_args()
 
-    server    = args.server
+    server    = "http://"+args.server
     directory = os.path.realpath(args.directory)
 
     # Check directory exists
