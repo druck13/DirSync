@@ -67,7 +67,7 @@ class Handler(FileSystemEventHandler):
         # delete the object instead - doesn't seem to happen on Window or Linux
         # we do get a delete instead, but check nevertheless
         if os.path.commonprefix([event.src_path, directory]) != directory:
-            on_deleted(event)
+            DeleteObject(os.path.relpath(event.src_path, directory))
         else:
             # rename the object
             RenameObject(os.path.relpath(event.src_path,  directory),
@@ -122,7 +122,17 @@ def CheckFile(localfile, remotefile):
 # Returns     : None
 def CopyFile(localfile, remotefile):
     print("Server: Copying file: %s" % remotefile)
-    shutil.copy(localfile, os.path.join("Destination", remotefile))
+    # read file in to memory - wont work for massive files
+    with open(localfile, "rb") as f:
+        data = f.read();
+
+    localstat = os.stat(localfile)
+    response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile)+
+                                        "?atime_ns="+str(localstat.st_atime_ns)+
+                                        "&mtime_ns="+str(localstat.st_mtime_ns),
+                                        data=data)
+    if not response.ok:
+        response.raise_for_status()
 
 
 # Description : Checks a file is identical on the serber

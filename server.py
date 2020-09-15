@@ -6,8 +6,6 @@
 ###############################################################################
 
 import os
-import sys
-import time
 import argparse
 import urllib.parse
 import logging
@@ -52,7 +50,7 @@ def CreateDir(dirname):
 
 
 # Description : Checks if a file exists and returns stat information
-# Parameters  : string filename - filename to check
+# Parameters  : string filename - filename to check from url
 # Returns     : None
 @app.route(API+"/checkfile/<path:filename>", methods=["GET"])
 def CheckFile(filename):
@@ -63,16 +61,31 @@ def CheckFile(filename):
 
 
 # Description : Copies a file to the server
-# Parameters  : string localfile    - source filename
-#               string remotefile   - destination filename
+#               access and mofication times come from url arguments
+#               file data is encoded in the request
+# Parameters  : string filename     - filename from url
 # Returns     : None
-def CopyFile(localfile, remotefile):
-    print("Server: Copying file: %s" % remotefile)
-    shutil.copy(localfile, os.path.join(directory, remotefile))
+@app.route(API+"/copyfile/<path:filename>", methods=["POST"])
+def CopyFile(filename):
+    filename = os.path.join(directory, urllib.parse.unquote(filename))
+    atime_ns = flask.request.args.get('atime_ns')
+    mtime_ns = flask.request.args.get('mtime_ns')
+    try:
+        print("Server: Copying file: %s" % filename)
+        with open(filename, "wb") as f:
+            f.write(flask.request.get_data())
+
+        # Set the access and modification times, for use by initial directory sync
+        if atime_ns and mtime_ns:
+            os.utime(filename, ns=(int(atime_ns), int(mtime_ns)))
+        return flask.make_response("Copied", 200)
+    except IOError as e:
+        print("Server: Copy failed: %s :%s" % (filename, str(e)))
+        flask.abort(403)
 
 
-# Description : Checks a file is identical on the serber
-# Parameters  : string name  - file or directory name
+# Description : Deletes a file or directory on the server
+# Parameters  : string name  - file or directory name from url
 # Returns     : None
 @app.route(API+"/deleteobject/<path:name>", methods=["DELETE"])
 def DeleteObject(name):
@@ -93,8 +106,8 @@ def DeleteObject(name):
 
 
 # Description : Renames a file or directory on the server
-# Parameters  : string oldname - existing filename
-#               string newname - new filename
+#               new file name comes from url newname argument
+# Parameters  : string oldname - existing filename from url
 # Returns     : None
 @app.route(API+"/renameobject/<path:oldname>", methods=["PUT"])
 def RenameObject(oldname):
@@ -129,9 +142,7 @@ if __name__ == '__main__':
 
     try:
         # Disable most logging by flask
-        log = logging.getLogger("DirSync")
-        log.disabled = True
-        app.logger.disabled = True
+        logging.getLogger('werkzeug').disabled = True
 
         # Get host:port, or just host
         parts = args.interface.split(':')

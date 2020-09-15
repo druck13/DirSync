@@ -217,6 +217,7 @@ def Test4():
     print("========== Test 4 ==========")
     print("Client with file and directories in source only")
     CreateTestFiles()
+
     try:
         if not server_proc:
             server_proc = StartServer(None, args.dest_dir)
