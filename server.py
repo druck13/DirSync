@@ -35,6 +35,7 @@ def DirExists(dirname):
         flask.abort(404)
     return flask.make_response("Exists", 200)
 
+
 # Description : Checks a file is identical on the serber
 # Parameters  : string dirname  - directory name from URL
 # Returns     : None
@@ -73,16 +74,22 @@ def CopyFile(localfile, remotefile):
 # Description : Checks a file is identical on the serber
 # Parameters  : string name  - file or directory name
 # Returns     : None
+@app.route(API+"/deleteobject/<path:name>", methods=["DELETE"])
 def DeleteObject(name):
-    name = os.path.join(directory,  name)
-    if os.path.isdir(name):
-        print("Server: Deleting directory: %s" % name)
-        os.rmdir(name)
-    elif os.path.isfile(name):
-        print("Server: Deleting file: %s" % name)
-        os.remove(name)
-    else:
-        print("Server: Invalid name to delete: %s" % name)
+    name = os.path.join(directory, urllib.parse.unquote(name))
+    try:
+        if os.path.isdir(name):
+            print("Server: Deleting directory: %s" % name)
+            os.rmdir(name)
+        elif os.path.isfile(name):
+            print("Server: Deleting file: %s" % name)
+            os.remove(name)
+        else:
+            print("Server: Invalid name to delete: %s" % name)
+        return flask.make_response("Nothing to delete", 200)
+    except IOError as e:
+        print("Server: Deletion failed: %s :%s" % (name, str(e)))
+        flask.abort(404)
 
 
 # Description : Renames a file or directory on the server

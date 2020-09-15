@@ -129,15 +129,9 @@ def CopyFile(localfile, remotefile):
 # Parameters  : string name  - file or directory name
 # Returns     : None
 def DeleteObject(name):
-    name = os.path.join("Destination",  name)
-    if os.path.isdir(name):
-        print("Server: Deleting directory: %s" % name)
-        os.rmdir(name)
-    elif os.path.isfile(name):
-        print("Server: Deleting file: %s" % name)
-        os.remove(name)
-    else:
-        print("Server: Invalid name to delete: %s" % name)
+    response = requests.delete(server+API+"deleteobject/"+urllib.parse.quote(name))
+    if not response.ok:
+        response.raise_for_status()
 
 
 # Description : Renames a file or directory on the server

@@ -348,7 +348,7 @@ def Test7():
 def Test8():
     global client_proc, server_proc, run, passed, failed
     print("========== Test 8 ==========")
-    print("Rename files and directoris")
+    print("Rename files and directories")
     try:
         # touch the file to change modification time
         renames = \
