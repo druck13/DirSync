@@ -89,7 +89,7 @@ def StartServer(addrport, dstdir):
     ret = subprocess.Popen(command)
 
     # Wait for server to start before starting client
-    time.sleep(SERVERSTART_WAIT);
+    time.sleep(SERVERSTART_WAIT)
 
     return ret
 
@@ -116,7 +116,7 @@ def CreateFile(name, size=1024):
     data = "." * 1024
 
     with open(name, "w") as f:
-        for i in range(size):
+        for _ in range(size):
             f.write(data)
 
 
@@ -124,8 +124,8 @@ def CreateFile(name, size=1024):
 # Parameters  : None
 # Returns     : None
 def CreateTestFiles():
-    for dir in test_dirs:
-        dirname = os.path.join(args.src_dir, dir)
+    for adir in test_dirs:
+        dirname = os.path.join(args.src_dir, adir)
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
 
@@ -229,9 +229,9 @@ def Test4():
         ok = True
 
         # Check directories
-        for dir in test_dirs:
-            if not os.path.isdir(os.path.join(args.dest_dir, dir)):
-                print("Directory not found in destination: %s" % dir)
+        for adir in test_dirs:
+            if not os.path.isdir(os.path.join(args.dest_dir, adir)):
+                print("Directory not found in destination: %s" % adir)
                 ok = False
 
         # Check file
@@ -263,8 +263,8 @@ def Test5():
         for file in new_files:
             CreateFile(os.path.join(args.src_dir, file))
 
-        for dir in new_dirs:
-            os.makedirs(os.path.join(args.src_dir, dir))
+        for adir in new_dirs:
+            os.makedirs(os.path.join(args.src_dir, adir))
 
         time.sleep(TRANSFER_WAIT)
 
@@ -277,9 +277,9 @@ def Test5():
                 ok = False
 
         # Check directories
-        for dir in new_dirs:
-            if not os.path.isdir(os.path.join(args.dest_dir, dir)):
-                print("FAIL: Directory not found in destination: %s" % dir)
+        for adir in new_dirs:
+            if not os.path.isdir(os.path.join(args.dest_dir, adir)):
+                print("FAIL: Directory not found in destination: %s" % adir)
                 ok = False
 
         if ok:
@@ -418,13 +418,13 @@ if __name__ == '__main__':
             Test1()
 
         if args.test==0 or args.test==2:
-           Test2()
+            Test2()
 
         if args.test==0 or args.test==3:
-           Test3()
+            Test3()
 
         if args.test==0 or args.test==4:
-           Test4()
+            Test4()
 
         # Client an server and test files required for subsequent tests
         if args.test >= 5:

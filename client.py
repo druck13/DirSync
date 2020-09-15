@@ -9,10 +9,9 @@ import os
 import sys
 import time
 import argparse
-import shutil
-import requests
 import json
 import urllib.parse
+import requests
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -82,10 +81,10 @@ def DirExists(dirname):
     response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname))
     if response.ok:
         return True
-    elif response.status_code == 404:
+    if response.status_code == 404:
         return False
-    else:
-        response.raise_for_status()
+    response.raise_for_status() # Doesn't return
+    return False                # Added for pylint
 
 
 # Description : Checks a file is identical on the serber
@@ -110,10 +109,10 @@ def CheckFile(localfile, remotefile):
         # check file size and modification times match
         return remotestat.st_size  == localstat.st_size and \
                remotestat.st_mtime == localstat.st_mtime
-    elif response.status_code == 404:
+    if response.status_code == 404:
         return False
-    else:
-        response.raise_for_status()
+    response.raise_for_status() # Doesn't return
+    return False                # Added for pylint
 
 
 # Description : Copies a file to the server
@@ -124,13 +123,13 @@ def CopyFile(localfile, remotefile):
     print("Server: Copying file: %s" % remotefile)
     # read file in to memory - wont work for massive files
     with open(localfile, "rb") as f:
-        data = f.read();
+        data = f.read()
 
     localstat = os.stat(localfile)
     response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile)+
-                                        "?atime_ns="+str(localstat.st_atime_ns)+
-                                        "&mtime_ns="+str(localstat.st_mtime_ns),
-                                        data=data)
+                              "?atime_ns="+str(localstat.st_atime_ns)+
+                              "&mtime_ns="+str(localstat.st_mtime_ns),
+                              data=data)
     if not response.ok:
         response.raise_for_status()
 
@@ -151,7 +150,7 @@ def DeleteObject(name):
 def RenameObject(oldname, newname):
     print("Server: Renaming from %s to %s" % (oldname, newname))
     response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname)+
-                                           "?newname="+urllib.parse.quote(newname))
+                            "?newname="+urllib.parse.quote(newname))
     if not response.ok:
         response.raise_for_status()
 
@@ -165,8 +164,8 @@ def SyncDirectory(dirname):
         # path relative to the source directory
         path = os.path.relpath(root, dirname)
         # Handle directories
-        for dir in dirs:
-            remotedir = os.path.join(path, dir)
+        for adir in dirs:
+            remotedir = os.path.join(path, adir)
             if not DirExists(remotedir):
                 CreateDir(remotedir)
         # Handle files
