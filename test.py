@@ -52,8 +52,6 @@ test_files = \
     os.path.join("ExistingDir1", "ExistingFile5"),
 ]
 
-## Classes ####################################################################
-
 ## Functions ##################################################################
 
 
@@ -127,10 +125,14 @@ def CreateFile(name, size=1024):
 # Returns     : None
 def CreateTestFiles():
     for dir in test_dirs:
-        os.makedirs(os.path.join(args.src_dir, dir))
+        dirname = os.path.join(args.src_dir, dir)
+        if not os.path.isdir(dirname):
+            os.makedirs(dirname)
 
     for file in test_files:
-        CreateFile(os.path.join(args.src_dir, file))
+        filename = os.path.join(args.src_dir, file)
+        if not os.path.isfile(filename):
+            CreateFile(filename)
 
 
 # Description : checks if two files are the same
@@ -433,6 +435,9 @@ if __name__ == '__main__':
                 time.sleep(2)
 
         if args.test==0 or args.test==5:
+            # Test 4 needs to be run first
+            if args.test==5:
+                Test4()
             Test5()
 
         if args.test==0 or args.test==6:

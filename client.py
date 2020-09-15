@@ -11,6 +11,7 @@ import time
 import argparse
 import shutil
 import requests
+import json
 import urllib.parse
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -101,16 +102,18 @@ def CreateDir(dirname):
 #               string remotefile   - destination filename
 # Returns     : bool                - True if file is on the server
 def CheckFile(localfile, remotefile):
-    remotefile = os.path.join("Destination", remotefile)
-    if not os.path.isfile(remotefile):
+    response = requests.get(server+API+"checkfile/"+urllib.parse.quote(remotefile))
+    if response.ok:
+        data       = json.loads(response.content.decode('utf-8'))
+        localstat  = os.stat(localfile)
+        remotestat = os.stat_result(data)
+        # check file size and modification times match
+        return remotestat.st_size  == localstat.st_size and \
+               remotestat.st_mtime == localstat.st_mtime
+    elif response.status_code == 404:
         return False
-
-    localstat  = os.stat(localfile)
-    remotestat = os.stat(remotefile)
-
-    # check file size and modification times match
-    return remotestat.st_size  == localstat.st_size and \
-           remotestat.st_mtime == localstat.st_mtime
+    else:
+        response.raise_for_status()
 
 
 # Description : Copies a file to the server

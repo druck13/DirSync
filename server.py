@@ -43,28 +43,22 @@ def CreateDir(dirname):
     dirname = os.path.join(directory, urllib.parse.unquote(dirname))
     try:
         print("Server: Creating directory: %s" % dirname)
-        os.makedirs(dirname)
+        os.makedirs(dirname, exist_ok=True)
         return flask.make_response("Created", 200)
     except IOError as e:
         print("Server: Creating directory failed: %s :%s" % (dirname, str(e)))
         flask.abort(404)
 
 
-# Description : Checks if a file exists and is identical on the server
-# Parameters  : string localfile    - source filename
-#               string remotefile   - destination filename
-# Returns     : bool                - True if file is on the server
-def CheckFile(localfile, remotefile):
-    remotefile = os.path.join(directory, remotefile)
-    if not os.path.isfile(remotefile):
-        return False
-
-    localstat  = os.stat(localfile)
-    remotestat = os.stat(remotefile)
-
-    # check file size and modification times match
-    return remotestat.st_size  == localstat.st_size and \
-           remotestat.st_mtime == localstat.st_mtime
+# Description : Checks if a file exists and returns stat information
+# Parameters  : string filename - filename to check
+# Returns     : None
+@app.route(API+"/checkfile/<path:filename>", methods=["GET"])
+def CheckFile(filename):
+    filename = os.path.join(directory, urllib.parse.unquote(filename))
+    if not os.path.isfile(filename):
+        flask.abort(404)
+    return flask.jsonify(os.stat(filename))
 
 
 # Description : Copies a file to the server
