@@ -48,7 +48,7 @@ def CreateDir(dirname):
         return flask.make_response("Created", 200)
     except IOError as e:
         print("Server: Creating directory failed: %s :%s" % (dirname, str(e)))
-        flask.abort(404)
+        flask.abort(403)
 
 
 # Description : Checks if a file exists and returns stat information
@@ -89,16 +89,27 @@ def DeleteObject(name):
         return flask.make_response("Nothing to delete", 200)
     except IOError as e:
         print("Server: Deletion failed: %s :%s" % (name, str(e)))
-        flask.abort(404)
+        flask.abort(403)
 
 
 # Description : Renames a file or directory on the server
 # Parameters  : string oldname - existing filename
 #               string newname - new filename
 # Returns     : None
-def RenameObject(oldname, newname):
-    print("Server: Renaming from %s to %s" % (oldname, newname))
-    os.rename(os.path.join(directory, oldname), os.path.join(directory, newname))
+@app.route(API+"/renameobject/<path:oldname>", methods=["PUT"])
+def RenameObject(oldname):
+    newname = flask.request.args.get('newname')
+    if not newname:
+        flask.abort(400)
+    oldname = os.path.join(directory, urllib.parse.unquote(oldname))
+    newname = os.path.join(directory, urllib.parse.unquote(newname))
+    try:
+        print("Server: Renaming from %s to %s" % (oldname, newname))
+        os.rename(oldname, newname)
+        return flask.make_response("Renamed", 200)
+    except IOError as e:
+        print("Server: Rename failed: %s to %s :%s" % (oldname, newname, str(e)))
+        flask.abort(403)
 
 
 ## Main #######################################################################

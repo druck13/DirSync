@@ -140,7 +140,10 @@ def DeleteObject(name):
 # Returns     : None
 def RenameObject(oldname, newname):
     print("Server: Renaming from %s to %s" % (oldname, newname))
-    os.rename(os.path.join("Destination", oldname), os.path.join("Destination", newname))
+    response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname)+
+                                           "?newname="+urllib.parse.quote(newname))
+    if not response.ok:
+        response.raise_for_status()
 
 
 # Description : Ensure each file in directory is present on server
