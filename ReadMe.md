@@ -10,7 +10,7 @@ Installation
 ------------
 Runs on both Linux. Requires Python 3.6 or later.
 
-The following Python3 packages are required, and can be installed with python -m pip install <package>
+The following Python3 packages are required, and can be installed with python -m pip install &lt;package&gt;
 
 * requests
 * watcher
@@ -21,23 +21,23 @@ Running
 -------
 On the machine containing the directory to synchronise run
 
-python3 client.py <directory>
+python3 client.py &lt;directory&gt;
 
 On the machine to synchronise to (which can be the same machine, or a remote machine*), run
 
-python3 server.py [ <directory> ]
+python3 server.py [&lt;directory&gt;]
 
 If directory is not supplied, it will default to Storage in the same directory.
 
 * For security reasons the server only binds to the loopback network interface,
 to it is only accessible to the local machine. To use set up an ssh tunnel for port 5000.
 
-e.g. ssh <remotemachine> -L localhost:5000:localhost:5000
+e.g. ssh &lt;remotemachine&gt; -L localhost:5000:localhost:5000
 
 For use on the local network on a machine protected from the internet by a firewall and
 external interface can be specified.
 
-python3 server.py [ <directory> ] [-i <host:port>]
+python3 server.py [&lt;directory&gt; ] [-i &lt;host:port&gt;]
 
 When running both client and server will display information on synchronisation to stdout.
 
