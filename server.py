@@ -30,7 +30,7 @@ directory = "Storage"           # Name of directory to synchronise to
 def DirExists(dirname):
     dirname = os.path.join(directory, urllib.parse.unquote(dirname))
     if not os.path.isdir(dirname):
-        flask.abort(404)
+        flask.abort(410)
     return flask.make_response("Exists", 200)
 
 
@@ -56,7 +56,7 @@ def CreateDir(dirname):
 def CheckFile(filename):
     filename = os.path.join(directory, urllib.parse.unquote(filename))
     if not os.path.isfile(filename):
-        flask.abort(404)
+        flask.abort(410)
     return flask.jsonify(os.stat(filename))
 
 

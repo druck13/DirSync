@@ -81,7 +81,7 @@ def DirExists(dirname):
     response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname))
     if response.ok:
         return True
-    if response.status_code == 404:
+    if response.status_code == 410:
         return False
     response.raise_for_status() # Doesn't return
     return False                # Added for pylint
@@ -109,7 +109,7 @@ def CheckFile(localfile, remotefile):
         # check file size and modification times match
         return remotestat.st_size  == localstat.st_size and \
                remotestat.st_mtime == localstat.st_mtime
-    if response.status_code == 404:
+    if response.status_code == 410:
         return False
     response.raise_for_status() # Doesn't return
     return False                # Added for pylint
