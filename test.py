@@ -22,8 +22,6 @@ PROCESS_STOP_TIMEOUT    = 10            # Time to wait for program to stop
 ## Global Variables ###########################################################
 
 # Argument defaults
-server          = "localhost:5000"      # host:port of server
-interface       = "localhost:5000"      # Interface for sever to bind to
 src_dir         = "Source"              # Name of directory to synchronise from
 dest_dir        = "Destination"         # Name of directory to synchronise to
 def_dest_dir    = "Storage"             # Default directory used by server
@@ -56,14 +54,14 @@ test_files = \
 
 
 # Description : Runs the client program
-# Parameters  : string addrport - server address and port, or None
+# Parameters  : string hostport - server address and port, or None
 #             : string srcdir   - source directory or None
 # Returns     : class Popen     - process structure
-def StartClient(addrport, srcdir):
+def StartClient(hostport, srcdir):
     command = [ "python3", "client.py" ]
 
-    if addrport:
-        command += [ "--server", addrport ]
+    if hostport:
+        command += [ "--server", hostport ]
 
     if srcdir:
         command.append(srcdir)
@@ -73,14 +71,18 @@ def StartClient(addrport, srcdir):
 
 
 # Description : Runs the server program
-# Parameters  : string addrport - server interface or None
+# Parameters  : string hostport - server interface or None
 #             : string dstdir   - destination directory or None
 # Returns     : class Popen     - process structure
-def StartServer(addrport, dstdir):
-    command = [ "python3", "server.py" ]
+def StartServer(hostport, dstdir):
+    # User supplied command to start remote server
+    if args.command:
+        command = args.command.split()
+    else:
+        command = [ "python3", "server.py" ]
 
-    if addrport:
-        command += [ "--interface", addrport ]
+    if hostport:
+        command += [ "--interface", hostport ]
 
     if dstdir:
         command.append(dstdir)
@@ -105,6 +107,9 @@ def StopProgram(proc):
         else:
             proc.send_signal(signal.SIGINT)
         proc.wait(PROCESS_STOP_TIMEOUT)
+    # Give remote tasks longer to stop
+    if args.command:
+        time.sleep(1)
 
 
 # Description : Creates a test file
@@ -153,8 +158,11 @@ def Test1():
     global client_proc, server_proc, run, passed, failed
     print("========== Test 1 ==========")
     print("Server started with no directory parameter creates the default Strorage directory")
+    if args.command:
+        print("SKIP: Can't run remote server without shared directory argument")
+        return
     try:
-        server_proc = StartServer(None, None)
+        server_proc = StartServer(args.interface, None)
         if os.path.isdir(def_dest_dir):
             print("PASS: directory created")
             passed += 1
@@ -176,7 +184,7 @@ def Test2():
     print("========== Test 2 ==========")
     print("Server started with directory parameter creates the directory")
     try:
-        server_proc = StartServer(None, args.dest_dir)
+        server_proc = StartServer(args.interface, args.dest_dir)
         if os.path.isdir(args.dest_dir):
             print("PASS: directory created")
             passed += 1
@@ -196,7 +204,7 @@ def Test3():
     print("========== Test 3 ==========")
     print("Client started with invalid directory fails")
     try:
-        client_proc = StartClient(None, "dummy")
+        client_proc = StartClient(args.server, "dummy")
         time.sleep(1) # Wait for client
         if client_proc.poll() == 1:
             print("PASS: directory created")
@@ -220,9 +228,9 @@ def Test4():
 
     try:
         if not server_proc:
-            server_proc = StartServer(None, args.dest_dir)
+            server_proc = StartServer(args.interface, args.dest_dir)
 
-        client_proc = StartClient(None, args.src_dir)
+        client_proc = StartClient(args.server, args.src_dir)
 
         time.sleep(TRANSFER_WAIT)   # Wait for transfer
 
@@ -393,8 +401,9 @@ def Test8():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Directory Synchronisation Test")
     parser.add_argument("-t", "--test", type=int,   default=0,          help="Test number to run, defaults to all tests")
-    parser.add_argument("-s", "--server",           default=server,     help="Server host:port, defaults to "+server)
-    parser.add_argument("-i", "--interface",        default=interface,  help="Interface to bind to, defaults to "+interface)
+    parser.add_argument("-s", "--server",                               help="Server host:port")
+    parser.add_argument("-i", "--interface",                            help="Interface for server to bind to")
+    parser.add_argument("-c", "--command",                              help="Command to use when starting server, e.g. \"ssh hostname python3 path/server.py\"")
     parser.add_argument("src_dir",      nargs='?',  default=src_dir,    help="directory to synchronise from, defaults to "+src_dir)
     parser.add_argument("dest_dir",     nargs='?',  default=dest_dir,   help="directory to synchronise to, defaults to "+dest_dir)
     args = parser.parse_args()
@@ -430,9 +439,9 @@ if __name__ == '__main__':
         if args.test >= 5:
             CreateTestFiles()
             if not server_proc:
-                server_proc = StartServer(None, args.dest_dir)
+                server_proc = StartServer(args.interface, args.dest_dir)
             if not client_proc:
-                client_proc = StartClient(None, args.src_dir)
+                client_proc = StartClient(args.server, args.src_dir)
                 time.sleep(2)
 
         if args.test==0 or args.test==5:
