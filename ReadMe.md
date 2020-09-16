@@ -34,6 +34,7 @@ external interface can be specified.
     python3 server.py [<directory>] [-i <host:port>]
 
 e.g.
+
     ssh <remotemachine> -L localhost:5000:localhost:5000
 
 On the machine containing the directory to synchronise run
