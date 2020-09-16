@@ -70,10 +70,6 @@ History
 
 Future Versions
 ---------------
-* v1.1: Files are loaded in to memory for synchronisation which will fail for massive files,
-and will be slow. The new version will handle files in chunks, and will only copy those
-chunks which changed
-
 * v1.2: Files are synchronised as soon as they are changed which will lead to a lot of bandwidth
 use for frequently changed files. A queuing system will be implemented to limit copying to
 once per 60 seconds, or a configurable interval
