@@ -19,11 +19,7 @@ The following Python3 packages are required, and can be installed with python -m
 
 Running
 -------
-On the machine containing the directory to synchronise run
-
-python3 client.py &lt;directory&gt;
-
-On the machine to synchronise to (which can be the same machine, or a remote machine*), run
+*  On the machine to synchronise to (which can be the same machine, or a remote machine*), run
 
 python3 server.py [&lt;directory&gt;]
 
@@ -32,12 +28,16 @@ If directory is not supplied, it will default to Storage in the same directory.
 * For security reasons the server only binds to the loopback network interface,
 to it is only accessible to the local machine. To use set up an ssh tunnel for port 5000.
 
-e.g. ssh &lt;remotemachine&gt; -L localhost:5000:localhost:5000
-
 For use on the local network on a machine protected from the internet by a firewall and
 external interface can be specified.
 
 python3 server.py [&lt;directory&gt; ] [-i &lt;host:port&gt;]
+
+e.g. ssh &lt;remotemachine&gt; -L localhost:5000:localhost:5000
+
+* On the machine containing the directory to synchronise run
+
+python3 client.py &lt;directory&gt;
 
 When running both client and server will display information on synchronisation to stdout.
 
@@ -71,9 +71,10 @@ once per 60 seconds, or a configurable interval
 
 ToDo
 ----
+* Functionality - Implement file permissions and ownership
 * Robustness    - Any errors kill the client or server, these need to be handled
                   better. The client needs to be able to wait for the server to
                   respawn, and filing system errors need to be handled sensibly
 * Testing       - Only a limited amount of testing on Linux and Windows
                   No testing betweem client and server on different OS's
-* Security      - no authentication used in the flask protocol
+* Security      - No authentication used in the flask protocol

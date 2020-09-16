@@ -191,6 +191,16 @@ if __name__ == '__main__':
         sys.stderr.write("Client: Directory does not exist: %s\n" % directory)
         sys.exit(1)
 
+    # Wait for sever to start
+    print("Client: Waiting for server to start...")
+    while True:
+        try:
+            response = requests.get(server+API)
+            # proceed after any response
+            break
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            time.sleep(1)
+
     # Initial Sync of directory on starting
     SyncDirectory(directory)
 
