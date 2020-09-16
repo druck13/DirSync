@@ -1,4 +1,4 @@
-DirSync v1.0
+DirSync v1.1
 ============
 
 Purpose
@@ -58,6 +58,14 @@ machines and run a series of confidence tests.
 * Test 7: Modify a file
 * Test 8: Rename files and directories
 
+
+History
+-------
+* Version 1.0
+  * Initial release
+* Version 1.1
+  * Only changed parts of files are copied
+  * Client waits for server to start
 
 
 Future Versions
