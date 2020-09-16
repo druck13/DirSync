@@ -26,6 +26,7 @@ PROCESS_STOP_TIMEOUT    = 10            # Time to wait for program to stop
 src_dir         = "Source"              # Name of directory to synchronise from
 dest_dir        = "Destination"         # Name of directory to synchronise to
 def_dest_dir    = "Storage"             # Default directory used by server
+updatemax       = 60                    # default maximum update of files
 
 # Variables used by Test functions
 args        = None
@@ -66,6 +67,9 @@ def StartClient(hostport, srcdir):
     if hostport:
         command += [ "--server", hostport ]
 
+    if args.updatemax:
+        command += [ "--updatemax", args.updatemax ]
+
     if srcdir:
         command.append(srcdir)
 
@@ -86,6 +90,9 @@ def StartServer(hostport, dstdir):
 
     if hostport:
         command += [ "--interface", hostport ]
+
+    if args.blocksize:
+        command += [ "--blocksize", args.blocksize ]
 
     if dstdir:
         command.append(dstdir)
@@ -164,10 +171,7 @@ def WaitAndCheckFile(localfile, remotefile, description):
 
     time.sleep(1) # ensure files are closed
 
-    localdigest  = GetDigest(localfile)
-    remotedigest = GetDigest(remotefile)
-
-    if remotedigest != localdigest:
+    if not CompareFiles(remotefile, localfile):
         print("File does not match after update (%s)" % description)
         return False
 
@@ -175,8 +179,16 @@ def WaitAndCheckFile(localfile, remotefile, description):
     return True
 
 
+# Description : Checks if two files are the same
+# Parameters  : string file1 - first filename
+#               string file2 - second filename
+# Returns     : bool         - True if the same
+def CompareFiles(file1, file2):
+    return GetDigest(file1) ==  GetDigest(file2)
+
 # Description : Checksums a file using SHA1
-# Parameters  : string filename
+# Parameters  : string filename - the file to checksum
+# Returns     : bytes           - sha1 digest of file
 def GetDigest(filename):
     h = hashlib.sha1()
     with open(filename, 'rb') as f:
@@ -400,12 +412,29 @@ def Test7():
                 f.truncate(os.stat(localfile).st_size-1)
             ok = WaitAndCheckFile(localfile, remotefile, "Remove 1 byte")
 
-        # Entirely new file
-        if ok:
-            localfile  = os.path.join(args.src_dir,  "FileToReplace")
-            remotefile = os.path.join(args.dest_dir, "FileToReplace")
-            CreateFile(localfile, char=":")
-            ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
+            # Entirely new file
+            if ok:
+                localfile  = os.path.join(args.src_dir,  "FileToReplace")
+                remotefile = os.path.join(args.dest_dir, "FileToReplace")
+                CreateFile(localfile, char=":")
+                ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
+
+            # Check that file updated again holds off for the update rate
+            if ok:
+                localfile  = os.path.join(args.src_dir,  "FileToReplace")
+                remotefile = os.path.join(args.dest_dir, "FileToReplace")
+                # update a byte in the middle for a change
+                with open(localfile, "r+") as f:
+                    f.seek(os.stat(localfile).st_size/2)
+                    f.write('!')
+                # check the file hasn't been updated before the inerval
+                print("Waiting %d seconds for file update rate limiting..." % updatemax)
+                time.sleep(updatemax-2)
+                if CompareFiles(localfile, remotefile):
+                    print("Modified file updated before update max time")
+                    ok = False
+                else:
+                    ok = WaitAndCheckFile(localfile, remotefile, "Updated again")
 
         if ok:
             print("PASS: files updated")
@@ -466,13 +495,18 @@ def Test8():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Directory Synchronisation Test")
-    parser.add_argument("-t", "--test", type=int,   default=0,          help="Test number to run, defaults to all tests")
-    parser.add_argument("-s", "--server",                               help="Server host:port")
-    parser.add_argument("-i", "--interface",                            help="Interface for server to bind to")
-    parser.add_argument("-c", "--command",                              help="Command to use when starting server, e.g. \"ssh hostname python3 path/server.py\"")
-    parser.add_argument("src_dir",      nargs='?',  default=src_dir,    help="directory to synchronise from, defaults to "+src_dir)
-    parser.add_argument("dest_dir",     nargs='?',  default=dest_dir,   help="directory to synchronise to, defaults to "+dest_dir)
+    parser.add_argument("-t", "--test",         type=int,   default=0,          help="Test number to run, defaults to all tests")
+    parser.add_argument("-s", "--server",                                       help="Server host:port")
+    parser.add_argument("-i", "--interface",                                    help="Interface for server to bind to")
+    parser.add_argument("-c", "--command",                                      help="Command to use when starting server, e.g. \"ssh hostname python3 path/server.py\"")
+    parser.add_argument("-b", "--blocksize",                                    help="Block size for file change detection for server")
+    parser.add_argument("-u", "--updatemax",                                    help="Only update a file once per interval for client")
+    parser.add_argument("src_dir",              nargs='?',  default=src_dir,    help="directory to synchronise from, defaults to "+src_dir)
+    parser.add_argument("dest_dir",             nargs='?',  default=dest_dir,   help="directory to synchronise to, defaults to "+dest_dir)
     args = parser.parse_args()
+
+    if args.updatemax:
+        updatemax = int(args.updatemax)
 
     # remove any existing source and destination directories
     if os.path.isdir(args.src_dir):

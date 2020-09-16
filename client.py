@@ -18,14 +18,20 @@ from watchdog.events import FileSystemEventHandler
 
 ## Constants ##################################################################
 
-POLL_TIME   = 10                # Interval to poll main thread
-API         = "/api/v1.0/"      # v1.0 API url prefix
-API1        = "/api/v1.1/"      # v1.1 API url prefix
+POLL_TIME   = 1                     # Interval to poll main thread
+API         = "/api/v1.0/"          # v1.0 API url prefix
+API1        = "/api/v1.1/"          # v1.1 API url prefix
 
 ## Global Variables ###########################################################
 
-server    = "localhost:5000"    # DirSync serve host:port
-directory = ""                  # directory to synchronise
+server      = "localhost:5000"      # DirSync server host:port
+directory   = ""                    # directory to synchronise
+updatemax   = 60                    # Default file update limit in seconds
+
+updatedict  = {}                    # Dictionary file update information
+                                    # { <filename> : { 'LastUpdated'   : <time>,
+                                    #                  'UpdatePending' : True|False }}
+
 
 ## Classes ####################################################################
 
@@ -45,6 +51,9 @@ class Handler(FileSystemEventHandler):
     # Returns     : None
     @staticmethod
     def on_deleted(event):
+        if event.src_path in updatedict:
+            # throw away any pending updates on deletion
+            del updatedict[event.src_path]
         # The server will work out to delete either a file or directory
         DeleteObject(os.path.relpath(event.src_path, directory))
 
@@ -54,9 +63,13 @@ class Handler(FileSystemEventHandler):
     @staticmethod
     def on_modified(event):
         # Only handle files
-        remotefile = os.path.relpath(event.src_path, directory)
-        if not event.is_directory and not CheckFile(event.src_path, remotefile):
-            CopyFile(event.src_path, remotefile)
+        if not event.is_directory:
+            # check if updated previously, otherwise copy now
+            if event.src_path in updatedict:
+                updatedict[event.src_path]['PendingUpdate'] = True
+            else:
+                CopyFile(event.src_path, os.path.relpath(event.src_path, directory))
+                updatedict[event.src_path] = { 'LastUpdated' : time.time(), 'PendingUpdate' : False }
 
 
     # Description : Called for file on directory renaming
@@ -73,6 +86,10 @@ class Handler(FileSystemEventHandler):
             # rename the object
             RenameObject(os.path.relpath(event.src_path,  directory),
                          os.path.relpath(event.dest_path, directory))
+            # rename file in update dict too
+            if event.src_path in updatedict:
+                updatedict[event.dest_path] = updatedict[event.src_path]
+                del updatedict[event.src_path]
 
 ## Functions ##################################################################
 
@@ -123,7 +140,7 @@ def CheckFile(localfile, remotefile):
 # Returns     : None
 def CopyFile(localfile, remotefile):
     localstat = os.stat(localfile)
-    localinfo = "&filesize=%d&atime_ns=%d&mtime_ns=%d" % (localstat.st_size, localstat.st_atime_ns, localstat.st_mtime_ns)
+    localinfo = "&filesize="+str(localstat.st_size)+"&atime_ns="+str(localstat.st_atime_ns)+"&mtime_ns="+str(localstat.st_mtime_ns)
 
     # Try v1.1 API to get checksums of each block of file
     response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile))
@@ -137,6 +154,9 @@ def CopyFile(localfile, remotefile):
         with open(localfile, "rb") as f:
             while True:
                 data = f.read(blocksize)
+                if not data:
+                    break
+
                 last = len(data) < blocksize
                 # Check for EOF
                 h = hashlib.sha1()
@@ -158,14 +178,12 @@ def CopyFile(localfile, remotefile):
                     if not response2.ok:
                         response2.raise_for_status()
 
-                if last:
-                    break
                 block += 1
         # if the last block wasn't sent, send the file information
         if not lastsent:
             url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)+localinfo
             response3 = requests.post(url)
-            if not response2.ok:
+            if not response3.ok:
                 response3.raise_for_status()
     # fallback copying while file with v1.0 API
     elif response.status_code == 404:
@@ -227,9 +245,10 @@ def SyncDirectory(dirname):
 ## Main #######################################################################
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Directory Synchronisation Client")
-    parser.add_argument("-s", "--server", default=server,  help="Server host:port, defaults to "+server)
-    parser.add_argument("directory",                       help="directory to synchronise")
+    parser = argparse.ArgumentParser(description="Directory Synchronisation Client v1.2")
+    parser.add_argument("-s", "--server",              default=server,     help="Server host:port, defaults to "+server)
+    parser.add_argument("-u", "--updatemax", type=int, default=updatemax,  help="Only update a file once per interval, defaults to "+str(updatemax)+" seconds")
+    parser.add_argument("directory",                                       help="directory to synchronise")
     args = parser.parse_args()
 
     server    = "http://"+args.server
@@ -262,6 +281,18 @@ if __name__ == '__main__':
     try:
         while True:
             time.sleep(POLL_TIME)
+
+            # scan the update dict
+            for name in list(updatedict):
+                # act after the update interval has elapsed
+                if time.time() - updatedict[name]['LastUpdated'] >= args.updatemax:
+                    if updatedict[name]['PendingUpdate']:
+                        # Perform the pending update, and record last update time
+                        CopyFile(name, os.path.relpath(name, directory))
+                        updatedict[name] = { 'LastUpdated' : time.time(), 'PendingUpdate' : False }
+                    else:
+                        # No updates, so forget file
+                        del updatedict[name]
     except KeyboardInterrupt:
         observer.stop()
         print("Client: Terminated by the user")
