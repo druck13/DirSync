@@ -227,7 +227,7 @@ def SyncDirectory(dirname):
 ## Main #######################################################################
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Directory Synchronisation Client")
+    parser = argparse.ArgumentParser(description="Directory Synchronisation Client v1.1")
     parser.add_argument("-s", "--server", default=server,  help="Server host:port, defaults to "+server)
     parser.add_argument("directory",                       help="directory to synchronise")
     args = parser.parse_args()
