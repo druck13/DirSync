@@ -165,7 +165,7 @@ def CopyFile(localfile, remotefile):
         if not lastsent:
             url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)+localinfo
             response3 = requests.post(url)
-            if not response2.ok:
+            if not response3.ok:
                 response3.raise_for_status()
     # fallback copying while file with v1.0 API
     elif response.status_code == 404:
