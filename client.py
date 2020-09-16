@@ -10,6 +10,7 @@ import sys
 import time
 import argparse
 import json
+import hashlib
 import urllib.parse
 import requests
 from watchdog.observers import Observer
@@ -18,7 +19,8 @@ from watchdog.events import FileSystemEventHandler
 ## Constants ##################################################################
 
 POLL_TIME   = 10                # Interval to poll main thread
-API = "/api/v1.0/"              # API url prefix
+API         = "/api/v1.0/"      # v1.0 API url prefix
+API1        = "/api/v1.1/"      # v1.1 API url prefix
 
 ## Global Variables ###########################################################
 
@@ -81,7 +83,7 @@ def DirExists(dirname):
     response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname))
     if response.ok:
         return True
-    if response.status_code == 404:
+    if response.status_code == 410:
         return False
     response.raise_for_status() # Doesn't return
     return False                # Added for pylint
@@ -109,7 +111,7 @@ def CheckFile(localfile, remotefile):
         # check file size and modification times match
         return remotestat.st_size  == localstat.st_size and \
                remotestat.st_mtime == localstat.st_mtime
-    if response.status_code == 404:
+    if response.status_code == 410:
         return False
     response.raise_for_status() # Doesn't return
     return False                # Added for pylint
@@ -120,16 +122,63 @@ def CheckFile(localfile, remotefile):
 #               string remotefile   - destination filename
 # Returns     : None
 def CopyFile(localfile, remotefile):
-    print("Server: Copying file: %s" % remotefile)
-    # read file in to memory - wont work for massive files
-    with open(localfile, "rb") as f:
-        data = f.read()
-
     localstat = os.stat(localfile)
-    response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile)+
-                              "?atime_ns="+str(localstat.st_atime_ns)+
-                              "&mtime_ns="+str(localstat.st_mtime_ns),
-                              data=data)
+
+    # Try v1.1 API to get checksums of each block of file
+    response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile))
+    if response.ok:
+        remoteinfo = json.loads(response.content.decode('utf-8'))
+        blocksize  = remoteinfo['Blocksize']
+        block      = 0
+        data       = None
+        # Read file in blocks using size from server
+        with open(localfile, "rb") as f:
+            while True:
+                data = f.read(blocksize)
+                last = len(data) < blocksize
+                # Check for EOF
+                if not data:
+                    break
+                h = hashlib.sha1()
+                h.update(data)
+
+                # If larger than remote file, or checksum doesn't match, but not the last block
+                if (block >= len(remoteinfo['Checksums']) or h.hexdigest() != remoteinfo['Checksums'][block]) \
+                and not last:
+                    #send the block of data
+                    response2 = requests.post(server+API1+"copyblock/"+urllib.parse.quote(remotefile)+
+                                              "?offset="+str(block*blocksize),
+                                              data=data)
+                    if not response2.ok:
+                        response2.raise_for_status()
+
+                # dont update block number on last block so it can be used below
+                if not last:
+                    block += 1
+
+            # send either the last block of data or zero data if block size multiple
+            # but include file size atime and mtime information to update remote file
+            response3 = requests.post(server+API1+"copyblock/"+urllib.parse.quote(remotefile)+
+                                      "?offset="+str(block*blocksize)+
+                                      "&filesize="+str(localstat.st_size)+
+                                      "&atime_ns="+str(localstat.st_atime_ns)+
+                                      "&mtime_ns="+str(localstat.st_mtime_ns),
+                                      data=data)
+            if not response3.ok:
+                response3.raise_for_status()
+    # fallback copying while file with v1.0 API
+    elif response.status_code == 404:
+        print("Server: Copying file: %s" % remotefile)
+        # read file in to memory - wont work for massive files
+        with open(localfile, "rb") as f:
+            data = f.read()
+
+        response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile)+
+                                  "?atime_ns="+str(localstat.st_atime_ns)+
+                                  "&mtime_ns="+str(localstat.st_mtime_ns),
+                                  data=data)
+
+     # Failure of either API will reach here
     if not response.ok:
         response.raise_for_status()
 
@@ -190,6 +239,16 @@ if __name__ == '__main__':
     if not os.path.isdir(args.directory):
         sys.stderr.write("Client: Directory does not exist: %s\n" % directory)
         sys.exit(1)
+
+    # Wait for sever to start
+    print("Client: Waiting for server to start...")
+    while True:
+        try:
+            response = requests.get(server+API)
+            # proceed after any response
+            break
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            time.sleep(1)
 
     # Initial Sync of directory on starting
     SyncDirectory(directory)

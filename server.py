@@ -9,17 +9,20 @@ import os
 import argparse
 import urllib.parse
 import logging
+import hashlib
 import flask
 
 ## Constants ##################################################################
 
-API = "/api/v1.0"              # API url prefix
+API = "/api/v1.0"              # v1.0 API url prefix
+API1 = "/api/v1.1"             # v1.1 API url prefix
 
 ## Global Variables ###########################################################
 
 app       = flask.Flask("DirSync")
 interface = "localhost:5000"    # host:port to bind server to
 directory = "Storage"           # Name of directory to synchronise to
+blocksize = 16384               # Size of block for file change detection
 
 ## Functions ##################################################################
 
@@ -30,7 +33,7 @@ directory = "Storage"           # Name of directory to synchronise to
 def DirExists(dirname):
     dirname = os.path.join(directory, urllib.parse.unquote(dirname))
     if not os.path.isdir(dirname):
-        flask.abort(404)
+        flask.abort(410)
     return flask.make_response("Exists", 200)
 
 
@@ -56,11 +59,43 @@ def CreateDir(dirname):
 def CheckFile(filename):
     filename = os.path.join(directory, urllib.parse.unquote(filename))
     if not os.path.isfile(filename):
-        flask.abort(404)
+        flask.abort(410)
     return flask.jsonify(os.stat(filename))
 
 
-# Description : Copies a file to the server
+# Description : Gets checksums for each block of data in a file
+#               Sends back the file size and list of checksum values
+# Parameters  : string filename - filename from url
+# Returns     : None
+@app.route(API1+"/filesums/<path:filename>", methods=["GET"])
+def FileSums(filename):
+    filename = os.path.join(directory, urllib.parse.unquote(filename))
+
+    checksums = []
+
+    if os.path.isfile(filename):
+        # Read the file in blocks and add checksums to list
+        with open(filename, "rb") as f:
+            while True:
+                data = f.read(args.blocksize)
+                # check for EOF
+                if not data:
+                    break
+                h = hashlib.sha1()
+                h.update(data)
+                checksums.append(h.hexdigest())
+
+
+    # if file doesn't exist just block size and empty list will be sent
+    fileinfo = \
+    {
+        'Blocksize' : args.blocksize,
+        'Checksums' : checksums
+    }
+    return flask.jsonify(fileinfo)
+
+
+# Description : Writes a file
 #               access and mofication times come from url arguments
 #               file data is encoded in the request
 # Parameters  : string filename     - filename from url
@@ -81,6 +116,38 @@ def CopyFile(filename):
         return flask.make_response("Copied", 200)
     except IOError as e:
         print("Server: Copy failed: %s :%s" % (filename, str(e)))
+        flask.abort(403)
+
+
+# Description : Writes a block of a file
+#               offset, file size, access and mofication times come from url arguments
+#               file data is encoded in the request
+# Parameters  : string filename     - filename from url
+# Returns     : None
+@app.route(API1+"/copyblock/<path:filename>", methods=["POST"])
+def CopyBlock(filename):
+    filename = os.path.join(directory, urllib.parse.unquote(filename))
+    offset   = int(flask.request.args.get('offset'))
+    filesize = flask.request.args.get('filesize')
+    atime_ns = flask.request.args.get('atime_ns')
+    mtime_ns = flask.request.args.get('mtime_ns')
+    try:
+        print("Server: Copying file block: %s offset %d %s" % (filename, offset, "size "+filesize if filesize else ""))
+        with open(filename, "rb+" if os.path.isfile(filename) else "wb") as f:
+            # Write the block at the given offset
+            f.seek(offset)
+            f.write(flask.request.get_data())
+
+            # Ensure the file is shrunk to the new size
+            if filesize:
+                f.truncate(int(filesize))
+
+        # Set the access and modification times, for use by initial directory sync
+        if atime_ns and mtime_ns:
+            os.utime(filename, ns=(int(atime_ns), int(mtime_ns)))
+        return flask.make_response("Written", 200)
+    except IOError as e:
+        print("Server: Write failed: %s offset %d :%s" % (filename, offset, str(e)))
         flask.abort(403)
 
 
@@ -129,8 +196,9 @@ def RenameObject(oldname):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Directory Synchronisation Server")
-    parser.add_argument("-i", "--interface",        default=interface,  help="Interface to bind to, defaults to "+interface)
-    parser.add_argument("directory",    nargs='?',  default=directory,  help="directory to synchronise")
+    parser.add_argument("-i", "--interface",            default=interface,  help="Interface to bind to, defaults to "+interface)
+    parser.add_argument("-b", "--blocksize", type=int,  default=blocksize,  help="Block size for file change detection, defaults to "+str(blocksize)+" bytes")
+    parser.add_argument("directory",         nargs='?', default=directory,  help="Directory to synchronise")
     args = parser.parse_args()
 
     # Set global for storage directory

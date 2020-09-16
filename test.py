@@ -12,6 +12,7 @@ import argparse
 import shutil
 import subprocess
 import signal
+import hashlib
 
 ## Constants ##################################################################
 
@@ -37,17 +38,20 @@ failed      = 0
 # Test file and directory names
 test_dirs  = \
 [
-    "ExistingDir1",
-    "ExistingDir2"
+    "DirToDelete",
+    "DirToRename"
 ]
 test_files = \
 [
-    "ExistingFile1",
-    "ExistingFile2",
-    "ExistingFile3",
-    "ExistingFile4",
-    os.path.join("ExistingDir1", "ExistingFile4"),
-    os.path.join("ExistingDir1", "ExistingFile5"),
+    "FileToDelete",
+    "FileToTouch",
+    "FileToChangeStart",
+    "FileToAdd1",
+    "FileToRemove1",
+    "FileToReplace",
+    "FileToRename",
+    os.path.join("DirToDelete", "DirToDeleteFile1"),
+    os.path.join("DirToDelete", "DirToDeleteFile2"),
 ]
 
 ## Functions ##################################################################
@@ -114,11 +118,12 @@ def StopProgram(proc):
 
 # Description : Creates a test file
 # Parameters  : string name - file NameError
-#               size        - file size in KiB or None to default to 1024KiB
+#               int size    - file size in KiB or None to default to 1024KiB
+#               string char - character to use as data
 # Returns     : None
-def CreateFile(name, size=1024):
+def CreateFile(name, size=1024, char='.'):
     # 1K block of dataaaaTRANSFER_WAIT
-    data = "." * 1024
+    data = char * 1024
 
     with open(name, "w") as f:
         for _ in range(size):
@@ -140,16 +145,49 @@ def CreateTestFiles():
             CreateFile(filename)
 
 
-# Description : checks if two files are the same
-# Parameters  : string file1 - first file
-# Returns     : string file2 - second file
-def IsFileSame(file1, file2):
-    stat1 = os.stat(file1)
-    stat2 = os.stat(file2)
+# Description : Polls remote file until changed,
+#               checksums against local file
+#               displays timings
+# Parameters  : string localfile  - local file
+# Returns     : True if updated and matching
+def WaitAndCheckFile(localfile, remotefile, description):
+    start_time = time.time()
+    mtime_ns   = os.stat(localfile).st_mtime_ns
 
-    # check file size and modification times match
-    return stat1.st_size  == stat2.st_size and \
-           stat2.st_mtime == stat2.st_mtime
+    # Wait until mtime update as only set on the last block
+    while(os.stat(remotefile).st_mtime_ns != mtime_ns):
+        time.sleep(0.001)
+        elapsed = time.time() - start_time
+        if elapsed > TRANSFER_WAIT:
+            print("File has not been updated (%s)" % description)
+            return False
+
+    time.sleep(1) # ensure files are closed
+
+    localdigest  = GetDigest(localfile)
+    remotedigest = GetDigest(remotefile)
+
+    if remotedigest != localdigest:
+        print("File does not match after update (%s)" % description)
+        return False
+
+    print("%s in %.3f seconds" % (description, elapsed))
+    return True
+
+
+# Description : Checksums a file using SHA1
+# Parameters  : string filename
+def GetDigest(filename):
+    h = hashlib.sha1()
+    with open(filename, 'rb') as f:
+        while True:
+            # Reading is buffered, so we can read smaller chunks.
+            data = f.read(h.block_size)
+            if not data:
+                break
+            h.update(data)
+    return h.digest()
+
 
 
 ## Test Functions #############################################################
@@ -174,7 +212,7 @@ def Test1():
         server_proc = None
         os.rmdir(def_dest_dir)
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -194,7 +232,7 @@ def Test2():
         StopProgram(server_proc)
         server_proc = None
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -215,7 +253,7 @@ def Test3():
             StopProgram(server_proc)
             server_proc = None
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -255,7 +293,7 @@ def Test4():
             print("FAIL: not all files and directories copied")
             failed += 1
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -265,8 +303,8 @@ def Test5():
     print("========== Test 5 ==========")
     print("Create new files and directories")
     try:
-        new_files = [ "NewFile1", os.path.join("ExistingDir1", "NewFile2") ]
-        new_dirs  = [ "NewDir1",  os.path.join("ExistingDir1", "NewDir2") ]
+        new_files = [ "NewFile1", os.path.join("DirToRename", "NewFile2") ]
+        new_dirs  = [ "NewDir1",  os.path.join("DirToRename", "NewDir2")  ]
 
         for file in new_files:
             CreateFile(os.path.join(args.src_dir, file))
@@ -298,7 +336,7 @@ def Test5():
             failed += 1
 
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -308,23 +346,25 @@ def Test6():
     print("========== Test 6 ==========")
     print("Delete files and directories")
     try:
-        os.remove(os.path.join(args.src_dir, test_files[0]))
-        shutil.rmtree(os.path.join(args.src_dir, test_dirs[0]))
+        filetodelete = "FileToDelete"
+        dirtodlete   = "DirToDelete"
+        os.remove(os.path.join(args.src_dir, filetodelete))
+        shutil.rmtree(os.path.join(args.src_dir, "DirToDelete"))
 
         time.sleep(TRANSFER_WAIT)
 
-        if os.path.isfile(os.path.join(args.dest_dir, test_files[0])):
-            print("FAIL: failed to remove file: %s" % test_files[0])
+        if os.path.isfile(os.path.join(args.dest_dir, filetodelete)):
+            print("FAIL: failed to remove file: %s" % filetodelete)
             failed += 1
-        elif os.path.isdir(os.path.join(args.dest_dir, test_dirs[0])):
-            print("FAIL: failed to remove directory: %s" % test_dirs[0])
+        elif os.path.isdir(os.path.join(args.dest_dir, dirtodlete)):
+            print("FAIL: failed to remove directory: %s" % dirtodlete)
             failed += 1
         else:
             print("PASS: files and directories deleted")
             passed += 1
 
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -332,24 +372,56 @@ def Test6():
 def Test7():
     global client_proc, server_proc, run, passed, failed
     print("========== Test 7 ==========")
-    print("Modify a file")
+    print("Modify files")
     try:
+
+        # No change to data, but will generate update event
+        localfile  = os.path.join(args.src_dir,  "FileToTouch")
+        remotefile = os.path.join(args.dest_dir, "FileToTouch")
         # touch the file to change modification time
-        localfile  = os.path.join(args.src_dir,  test_files[1])
-        remotefile = os.path.join(args.dest_dir, test_files[1])
         os.utime(localfile, None)
+        ok = WaitAndCheckFile(localfile, remotefile, "Touched")
 
-        time.sleep(TRANSFER_WAIT)
+        # Change first byte of file
+        localfile  = os.path.join(args.src_dir,  "FileToChangeStart")
+        remotefile = os.path.join(args.dest_dir, "FileToChangeStart")
+        if ok:
+            with open(localfile, "r+") as f:
+                f.write('!')
+            ok = WaitAndCheckFile(localfile, remotefile, "Change first byte")
 
-        if IsFileSame(localfile, remotefile):
-            print("PASS: file updated: %s" % test_files[1])
+        # Add 1 byte to end of file
+        localfile  = os.path.join(args.src_dir,  "FileToAdd1")
+        remotefile = os.path.join(args.dest_dir, "FileToAdd1")
+        if ok:
+            with open(localfile, "a") as f:
+                f.write('!')
+            ok = WaitAndCheckFile(localfile, remotefile, "Add 1 byte")
+
+        # Remove 1 byte from end of file
+        localfile  = os.path.join(args.src_dir,  "FileToRemove1")
+        remotefile = os.path.join(args.dest_dir, "FileToRemove1")
+        if ok:
+            with open(localfile, "r+") as f:
+                f.truncate(os.stat(localfile).st_size-1)
+            ok = WaitAndCheckFile(localfile, remotefile, "Remove 1 byte")
+
+        # Entirely new file
+        localfile  = os.path.join(args.src_dir,  "FileToReplace")
+        remotefile = os.path.join(args.dest_dir, "FileToReplace")
+        if ok:
+            CreateFile(localfile, char=":")
+            ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
+
+        if ok:
+            print("PASS: files updated")
             passed +=1
         else:
-            print("FAIL: file not updated: %s" % test_files[1])
+            print("FAIL: files not updated")
             failed += 1
 
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -362,8 +434,8 @@ def Test8():
         # touch the file to change modification time
         renames = \
         [
-            (test_files[2], "RenamedFile1"),
-            (test_dirs[1],  "RenamedDir1"),
+            ("FileToRename", "FileRenamed"),
+            ("DirToRename",  "DirRenamed"),
         ]
 
         for oldname, newname in renames:
@@ -391,7 +463,7 @@ def Test8():
             failed += 1
 
     except OSError as e:
-        print("FAIL: Exception %s" % str(e))
+        print("FAIL: Exception: %s" % str(e))
         failed += 1
     run += 1
 
@@ -442,12 +514,9 @@ if __name__ == '__main__':
                 server_proc = StartServer(args.interface, args.dest_dir)
             if not client_proc:
                 client_proc = StartClient(args.server, args.src_dir)
-                time.sleep(2)
+                time.sleep(TRANSFER_WAIT)
 
         if args.test==0 or args.test==5:
-            # Test 4 needs to be run first
-            if args.test==5:
-                Test4()
             Test5()
 
         if args.test==0 or args.test==6:
