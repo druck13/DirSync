@@ -123,6 +123,7 @@ def CheckFile(localfile, remotefile):
 # Returns     : None
 def CopyFile(localfile, remotefile):
     localstat = os.stat(localfile)
+    localinfo = "&filesize=%d&atime_ns=%d&mtime_ns=%d" % (localstat.st_size, localstat.st_atime_ns, localstat.st_mtime_ns)
 
     # Try v1.1 API to get checksums of each block of file
     response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile))
@@ -131,40 +132,40 @@ def CopyFile(localfile, remotefile):
         blocksize  = remoteinfo['Blocksize']
         block      = 0
         data       = None
+        lastsent   = False
         # Read file in blocks using size from server
         with open(localfile, "rb") as f:
             while True:
                 data = f.read(blocksize)
                 last = len(data) < blocksize
                 # Check for EOF
-                if not data:
-                    break
                 h = hashlib.sha1()
                 h.update(data)
 
-                # If larger than remote file, or checksum doesn't match, but not the last block
-                if (block >= len(remoteinfo['Checksums']) or h.hexdigest() != remoteinfo['Checksums'][block]) \
-                and not last:
+                # If larger than remote file, or checksum doesn't match
+                if block >= len(remoteinfo['Checksums']) \
+                or h.hexdigest() != remoteinfo['Checksums'][block]:
+
+                    url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)
+
+                    # Add file information on the last block
+                    if last:
+                        url     += localinfo
+                        lastsent = True
+
                     #send the block of data
-                    response2 = requests.post(server+API1+"copyblock/"+urllib.parse.quote(remotefile)+
-                                              "?offset="+str(block*blocksize),
-                                              data=data)
+                    response2 = requests.post(url, data=data)
                     if not response2.ok:
                         response2.raise_for_status()
 
-                # dont update block number on last block so it can be used below
-                if not last:
-                    block += 1
-
-            # send either the last block of data or zero data if block size multiple
-            # but include file size atime and mtime information to update remote file
-            response3 = requests.post(server+API1+"copyblock/"+urllib.parse.quote(remotefile)+
-                                      "?offset="+str(block*blocksize)+
-                                      "&filesize="+str(localstat.st_size)+
-                                      "&atime_ns="+str(localstat.st_atime_ns)+
-                                      "&mtime_ns="+str(localstat.st_mtime_ns),
-                                      data=data)
-            if not response3.ok:
+                if last:
+                    break
+                block += 1
+        # if the last block wasn't sent, send the file information
+        if not lastsent:
+            url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)+localinfo
+            response3 = requests.post(url)
+            if not response2.ok:
                 response3.raise_for_status()
     # fallback copying while file with v1.0 API
     elif response.status_code == 404:
@@ -197,7 +198,6 @@ def DeleteObject(name):
 #               string newname - new filename
 # Returns     : None
 def RenameObject(oldname, newname):
-    print("Server: Renaming from %s to %s" % (oldname, newname))
     response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname)+
                             "?newname="+urllib.parse.quote(newname))
     if not response.ok:

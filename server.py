@@ -22,7 +22,7 @@ API1 = "/api/v1.1"             # v1.1 API url prefix
 app       = flask.Flask("DirSync")
 interface = "localhost:5000"    # host:port to bind server to
 directory = "Storage"           # Name of directory to synchronise to
-blocksize = 16384               # Size of block for file change detection
+blocksize = 256*1024            # Size of block for file change detection
 
 ## Functions ##################################################################
 
@@ -115,7 +115,7 @@ def CopyFile(filename):
             os.utime(filename, ns=(int(atime_ns), int(mtime_ns)))
         return flask.make_response("Copied", 200)
     except IOError as e:
-        print("Server: Copy failed: %s :%s" % (filename, str(e)))
+        print("Server: Copy failed: %s" % str(e))
         flask.abort(403)
 
 
@@ -147,7 +147,7 @@ def CopyBlock(filename):
             os.utime(filename, ns=(int(atime_ns), int(mtime_ns)))
         return flask.make_response("Written", 200)
     except IOError as e:
-        print("Server: Write failed: %s offset %d :%s" % (filename, offset, str(e)))
+        print("Server: Write failed: %s" % str(e))
         flask.abort(403)
 
 
@@ -168,7 +168,7 @@ def DeleteObject(name):
             print("Server: Invalid name to delete: %s" % name)
         return flask.make_response("Nothing to delete", 200)
     except IOError as e:
-        print("Server: Deletion failed: %s :%s" % (name, str(e)))
+        print("Server: Deletion failed: %s" % str(e))
         flask.abort(403)
 
 
@@ -187,10 +187,13 @@ def RenameObject(oldname):
         print("Server: Renaming from %s to %s" % (oldname, newname))
         os.rename(oldname, newname)
         return flask.make_response("Renamed", 200)
+    except FileNotFoundError:
+        # ignore file not found as can be sent notifications for
+        # the contents of directories which have been renamed
+        return flask.make_response("Not renamed", 200)
     except IOError as e:
-        print("Server: Rename failed: %s to %s :%s" % (oldname, newname, str(e)))
+        print("Server: Rename failed: %s" % str(e))
         flask.abort(403)
-
 
 ## Main #######################################################################
 

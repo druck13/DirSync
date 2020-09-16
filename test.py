@@ -44,14 +44,13 @@ test_dirs  = \
 test_files = \
 [
     "FileToDelete",
-    "FileToTouch",
     "FileToChangeStart",
     "FileToAdd1",
     "FileToRemove1",
     "FileToReplace",
     "FileToRename",
-    os.path.join("DirToDelete", "DirToDeleteFile1"),
-    os.path.join("DirToDelete", "DirToDeleteFile2"),
+    os.path.join("DirToDelete", "DirToDeleteFile"),
+    os.path.join("DirToDelete", "DirToRenameFile"),
 ]
 
 ## Functions ##################################################################
@@ -152,6 +151,7 @@ def CreateTestFiles():
 # Returns     : True if updated and matching
 def WaitAndCheckFile(localfile, remotefile, description):
     start_time = time.time()
+    elapsed    = 0
     mtime_ns   = os.stat(localfile).st_mtime_ns
 
     # Wait until mtime update as only set on the last block
@@ -374,42 +374,36 @@ def Test7():
     print("========== Test 7 ==========")
     print("Modify files")
     try:
-
-        # No change to data, but will generate update event
-        localfile  = os.path.join(args.src_dir,  "FileToTouch")
-        remotefile = os.path.join(args.dest_dir, "FileToTouch")
-        # touch the file to change modification time
-        os.utime(localfile, None)
-        ok = WaitAndCheckFile(localfile, remotefile, "Touched")
+        ok = True
 
         # Change first byte of file
-        localfile  = os.path.join(args.src_dir,  "FileToChangeStart")
-        remotefile = os.path.join(args.dest_dir, "FileToChangeStart")
         if ok:
+            localfile  = os.path.join(args.src_dir,  "FileToChangeStart")
+            remotefile = os.path.join(args.dest_dir, "FileToChangeStart")
             with open(localfile, "r+") as f:
                 f.write('!')
             ok = WaitAndCheckFile(localfile, remotefile, "Change first byte")
 
         # Add 1 byte to end of file
-        localfile  = os.path.join(args.src_dir,  "FileToAdd1")
-        remotefile = os.path.join(args.dest_dir, "FileToAdd1")
         if ok:
+            localfile  = os.path.join(args.src_dir,  "FileToAdd1")
+            remotefile = os.path.join(args.dest_dir, "FileToAdd1")
             with open(localfile, "a") as f:
                 f.write('!')
             ok = WaitAndCheckFile(localfile, remotefile, "Add 1 byte")
 
         # Remove 1 byte from end of file
-        localfile  = os.path.join(args.src_dir,  "FileToRemove1")
-        remotefile = os.path.join(args.dest_dir, "FileToRemove1")
         if ok:
+            localfile  = os.path.join(args.src_dir,  "FileToRemove1")
+            remotefile = os.path.join(args.dest_dir, "FileToRemove1")
             with open(localfile, "r+") as f:
                 f.truncate(os.stat(localfile).st_size-1)
             ok = WaitAndCheckFile(localfile, remotefile, "Remove 1 byte")
 
         # Entirely new file
-        localfile  = os.path.join(args.src_dir,  "FileToReplace")
-        remotefile = os.path.join(args.dest_dir, "FileToReplace")
         if ok:
+            localfile  = os.path.join(args.src_dir,  "FileToReplace")
+            remotefile = os.path.join(args.dest_dir, "FileToReplace")
             CreateFile(localfile, char=":")
             ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
 
