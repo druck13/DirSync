@@ -1,4 +1,4 @@
-DirSync v1.1
+DirSync v1.2
 ============
 
 Purpose
@@ -66,13 +66,8 @@ History
 * Version 1.1
   * Only changed parts of files are copied
   * Client waits for server to start
-
-
-Future Versions
----------------
-* v1.2: Files are synchronised as soon as they are changed which will lead to a lot of bandwidth
-use for frequently changed files. A queuing system will be implemented to limit copying to
-once per 60 seconds, or a configurable interval
+* Version 1.2
+  * Rate limits file updating to a configurable interval
 
 
 ToDo

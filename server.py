@@ -198,7 +198,7 @@ def RenameObject(oldname):
 ## Main #######################################################################
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Directory Synchronisation Server v1.1")
+    parser = argparse.ArgumentParser(description="Directory Synchronisation Server v1.2")
     parser.add_argument("-i", "--interface",            default=interface,  help="Interface to bind to, defaults to "+interface)
     parser.add_argument("-b", "--blocksize", type=int,  default=blocksize,  help="Block size for file change detection, defaults to "+str(blocksize)+" bytes")
     parser.add_argument("directory",         nargs='?', default=directory,  help="Directory to synchronise")
