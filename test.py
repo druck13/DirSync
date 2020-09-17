@@ -257,7 +257,7 @@ def Test3():
         client_proc = StartClient(args.server, "dummy")
         time.sleep(1) # Wait for client
         if client_proc.poll() == 1:
-            print("PASS: directory created")
+            print("PASS: client exited")
             passed += 1
         else:
             print("FAIL: did not exit")
