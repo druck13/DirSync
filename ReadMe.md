@@ -67,8 +67,7 @@ History
   * Only changed parts of files are copied
   * Client waits for server to start
 * Version 1.2
-  * Limits updating for a file to once per a configurable interval
-
+  * Rate limits file updating to a configurable interval
 
 
 ToDo
