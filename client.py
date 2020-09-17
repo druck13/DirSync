@@ -139,8 +139,6 @@ def CheckFile(localfile, remotefile):
 #               string remotefile   - destination filename
 # Returns     : None
 def CopyFile(localfile, remotefile):
-    localstat = os.stat(localfile)
-    localinfo = "&filesize="+str(localstat.st_size)+"&atime_ns="+str(localstat.st_atime_ns)+"&mtime_ns="+str(localstat.st_mtime_ns)
 
     # Try v1.1 API to get checksums of each block of file
     response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile))
@@ -158,6 +156,7 @@ def CopyFile(localfile, remotefile):
                     break
 
                 last = len(data) < blocksize
+
                 # Check for EOF
                 h = hashlib.sha1()
                 h.update(data)
@@ -165,13 +164,12 @@ def CopyFile(localfile, remotefile):
                 # If larger than remote file, or checksum doesn't match
                 if block >= len(remoteinfo['Checksums']) \
                 or h.hexdigest() != remoteinfo['Checksums'][block]:
-
                     url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)
-
                     # Add file information on the last block
                     if last:
-                        url     += localinfo
-                        lastsent = True
+                        localstat = os.stat(localfile)
+                        url      += "&filesize="+str(localstat.st_size)+"&atime_ns="+str(localstat.st_atime_ns)+"&mtime_ns="+str(localstat.st_mtime_ns)
+                        lastsent  = True
 
                     #send the block of data
                     response2 = requests.post(url, data=data)
@@ -181,7 +179,8 @@ def CopyFile(localfile, remotefile):
                 block += 1
         # if the last block wasn't sent, send the file information
         if not lastsent:
-            url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)+localinfo
+            localstat = os.stat(localfile)
+            url       = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)+ "&filesize="+str(localstat.st_size)+"&atime_ns="+str(localstat.st_atime_ns)+"&mtime_ns="+str(localstat.st_mtime_ns)
             response3 = requests.post(url)
             if not response3.ok:
                 response3.raise_for_status()
