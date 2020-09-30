@@ -6,7 +6,6 @@
 ###############################################################################
 
 import os
-import sys
 import argparse
 import urllib.parse
 import signal
@@ -27,9 +26,6 @@ directory = "Storage"           # Name of directory to synchronise to
 blocksize = 256*1024            # Size of block for file change detection
 
 ## Functions ##################################################################
-
-def cleanexit(signum, frame):   # pylint: disable=unused-argument
-    sys.exit(0)
 
 ## API Functions --------------------------------------------------------------
 
@@ -224,9 +220,6 @@ if __name__ == '__main__':
 
     # Set global for storage directory
     directory = args.directory
-
-    #ensure the server is quit on HUP signal to allow testing via SSH
-    signal.signal(signal.SIGHUP, cleanexit)
 
     if not os.path.isdir(directory):
         print("Server: Creating directory: %s" % directory)
