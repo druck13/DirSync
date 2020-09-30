@@ -202,6 +202,17 @@ def RenameObject(oldname):
         print("Server: Rename failed: %s" % str(e))
         flask.abort(403)
 
+
+# Description : Shutdown the server
+#             : used when run over ssh by test suite as flask ignores sighup
+# Parameters  : None
+# Returns     : None
+@app.route(API+"/shutdown", methods=["POST"])
+def Shutdown():
+    # Send outself a keyboard interrupt signal to quit
+    os.kill(os.getpid(), signal.SIGINT)
+    return flask.make_response("Shutting down", 200)
+
 ## Main #######################################################################
 
 if __name__ == '__main__':

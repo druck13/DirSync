@@ -13,12 +13,14 @@ import shutil
 import subprocess
 import signal
 import hashlib
+import requests
 
 ## Constants ##################################################################
 
 SERVERSTART_WAIT        = 1             # Time to wait for server to start
 TRANSFER_WAIT           = 5             # Time to wait for data transfers
 PROCESS_STOP_TIMEOUT    = 10            # Time to wait for program to stop
+API                     = "/api/v1.0/"  # v1.0 API url prefix
 
 ## Global Variables ###########################################################
 
@@ -78,6 +80,22 @@ def StartClient(hostport, srcdir):
     return subprocess.Popen(command)
 
 
+# Description : Stops the client by sending Ctrl+C and waits
+# Parameters  : subprocess proc - process structure of program
+# Returns     : None
+# Exceptions  : subprocess.timeoutexpired if process fails to stop
+def StopClient(proc):
+    if proc is not None:
+        if sys.platform == "win32":
+            proc.terminate()
+        else:
+            proc.send_signal(signal.SIGINT)
+        proc.wait(PROCESS_STOP_TIMEOUT)
+    # Give remote tasks longer to stop
+    if args.command:
+        time.sleep(1)
+
+
 # Description : Runs the server program
 # Parameters  : string hostport - server interface or None
 #             : string dstdir   - destination directory or None
@@ -106,13 +124,19 @@ def StartServer(hostport, dstdir):
 
     return ret
 
-
-# Description : Stops running programs by sending Ctrl+C and waits
+# Description : Stops the server sending a Ctrl+C if running locally
+#               or usinf the shutdown APU for a remote server
 # Parameters  : subprocess proc - process structure of program
 # Returns     : None
 # Exceptions  : subprocess.timeoutexpired if process fails to stop
-def StopProgram(proc):
+def StopServer(proc):
     if proc is not None:
+        # Shutdown a remote server, otherwise will remain running
+        # even after the command use to start it has been terminated
+        if args.command and args.hostport:
+            requests.delete(args.hostport+API+"shutdown")
+
+        # Stop the local sever or the command used start a remote one
         if sys.platform == "win32":
             proc.terminate()
         else:
@@ -222,7 +246,7 @@ def Test1():
             print("FAIL: directory does not exist")
             failed += 1
 
-        StopProgram(server_proc)
+        StopServer(server_proc)
         server_proc = None
         os.rmdir(def_dest_dir)
     except OSError as e:
@@ -243,7 +267,7 @@ def Test2():
         else:
             print("FAIL: directory does not exist")
             failed += 1
-        StopProgram(server_proc)
+        StopServer(server_proc)
         server_proc = None
     except OSError as e:
         print("FAIL: Exception: %s" % str(e))
@@ -264,8 +288,8 @@ def Test3():
         else:
             print("FAIL: did not exit")
             failed += 1
-            StopProgram(server_proc)
-            server_proc = None
+            StopClient(client_proc)
+            client_proc = None
     except OSError as e:
         print("FAIL: Exception: %s" % str(e))
         failed += 1
@@ -560,8 +584,8 @@ if __name__ == '__main__':
 
     finally:
         # Stop any running programs
-        StopProgram(client_proc)
-        StopProgram(server_proc)
+        StopClient(client_proc)
+        StopServer(server_proc)
 
     print("========== Summary ==========")
     print("Run    : %d" % run)
