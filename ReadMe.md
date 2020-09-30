@@ -3,7 +3,7 @@ DirSync v1.2
 
 Purpose
 -------
-Simple synchronisation a local directory with a remote directory, in the style of drop box.
+Simple synchronisation of a local directory with a remote directory, in the style of drop box.
 
 
 Installation
@@ -67,8 +67,7 @@ History
   * Only changed parts of files are copied
   * Client waits for server to start
 * Version 1.2
-  * Limits updating for a file to once per a configurable interval
-
+  * Rate limits file updating to a configurable interval
 
 
 ToDo
