@@ -6,8 +6,10 @@
 ###############################################################################
 
 import os
+import sys
 import argparse
 import urllib.parse
+import signal
 import logging
 import hashlib
 import flask
@@ -25,6 +27,11 @@ directory = "Storage"           # Name of directory to synchronise to
 blocksize = 256*1024            # Size of block for file change detection
 
 ## Functions ##################################################################
+
+def cleanexit(signum, frame):   # pylint: disable=unused-argument
+    sys.exit(0)
+
+## API Functions --------------------------------------------------------------
 
 # Description : Checks a directory exists on the server
 # Parameters  : string dirname  - directory name from URL
@@ -138,7 +145,7 @@ def CopyBlock(filename):
             f.seek(offset)
             f.write(flask.request.get_data())
 
-            # Ensure the file is shrunk to the new size
+            # Ensure the file is set to the new size
             if filesize:
                 f.truncate(int(filesize))
 
@@ -207,6 +214,9 @@ if __name__ == '__main__':
     # Set global for storage directory
     directory = args.directory
 
+    #ensure the server is quit on HUP signal to allow testing via SSH
+    signal.signal(signal.SIGHUP, cleanexit)
+
     if not os.path.isdir(directory):
         print("Server: Creating directory: %s" % directory)
         os.makedirs(directory)
@@ -223,6 +233,8 @@ if __name__ == '__main__':
         else:
             host = args.interface
             port = None
+
+        # Start the flask server
         app.run(host=host, port=port, debug=False)
     except KeyboardInterrupt:
         print("Server: Terminated by the user")

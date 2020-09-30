@@ -42,6 +42,7 @@ test_dirs  = \
     "DirToDelete",
     "DirToRename"
 ]
+
 test_files = \
 [
     "FileToDelete",
@@ -185,6 +186,7 @@ def WaitAndCheckFile(localfile, remotefile, description):
 # Returns     : bool         - True if the same
 def CompareFiles(file1, file2):
     return GetDigest(file1) ==  GetDigest(file2)
+
 
 # Description : Checksums a file using SHA1
 # Parameters  : string filename - the file to checksum
@@ -412,29 +414,29 @@ def Test7():
                 f.truncate(os.stat(localfile).st_size-1)
             ok = WaitAndCheckFile(localfile, remotefile, "Remove 1 byte")
 
-            # Entirely new file
-            if ok:
-                localfile  = os.path.join(args.src_dir,  "FileToReplace")
-                remotefile = os.path.join(args.dest_dir, "FileToReplace")
-                CreateFile(localfile, char=":")
-                ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
+        # Entirely new file
+        if ok:
+            localfile  = os.path.join(args.src_dir,  "FileToReplace")
+            remotefile = os.path.join(args.dest_dir, "FileToReplace")
+            CreateFile(localfile, char=":")
+            ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
 
-            # Check that file updated again holds off for the update rate
-            if ok:
-                localfile  = os.path.join(args.src_dir,  "FileToReplace")
-                remotefile = os.path.join(args.dest_dir, "FileToReplace")
-                # update a byte in the middle for a change
-                with open(localfile, "r+") as f:
-                    f.seek(os.stat(localfile).st_size/2)
-                    f.write('!')
-                # check the file hasn't been updated before the inerval
-                print("Waiting %d seconds for file update rate limiting..." % updatemax)
-                time.sleep(updatemax-2)
-                if CompareFiles(localfile, remotefile):
-                    print("Modified file updated before update max time")
-                    ok = False
-                else:
-                    ok = WaitAndCheckFile(localfile, remotefile, "Updated again")
+        # Check that file updated again holds off for the update rate
+        if ok:
+            localfile  = os.path.join(args.src_dir,  "FileToReplace")
+            remotefile = os.path.join(args.dest_dir, "FileToReplace")
+            # update a byte in the middle for a change
+            with open(localfile, "r+") as f:
+                f.seek(os.stat(localfile).st_size/2)
+                f.write('!')
+            # check the file hasn't been updated before the inerval
+            print("Waiting %d seconds for file update rate limiting..." % updatemax)
+            time.sleep(updatemax-2)
+            if CompareFiles(localfile, remotefile):
+                print("Modified file updated before update max time")
+                ok = False
+            else:
+                ok = WaitAndCheckFile(localfile, remotefile, "Updated again")
 
         if ok:
             print("PASS: files updated")
@@ -454,7 +456,6 @@ def Test8():
     print("========== Test 8 ==========")
     print("Rename files and directories")
     try:
-        # touch the file to change modification time
         renames = \
         [
             ("FileToRename", "FileRenamed"),
@@ -535,7 +536,8 @@ if __name__ == '__main__':
         if args.test==0 or args.test==4:
             Test4()
 
-        # Client an server and test files required for subsequent tests
+        # Client, server and test files required for subsequent tests,
+        # and left running after each
         if args.test >= 5:
             CreateTestFiles()
             if not server_proc:
