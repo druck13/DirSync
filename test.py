@@ -133,8 +133,8 @@ def StopServer(proc):
     if proc is not None:
         # Shutdown a remote server, otherwise will remain running
         # even after the command use to start it has been terminated
-        if args.command and args.hostport:
-            requests.delete(args.hostport+API+"shutdown")
+        if args.command and args.server:
+            requests.delete(args.server+API+"shutdown")
 
         # Stop the local sever or the command used start a remote one
         if sys.platform == "win32":
