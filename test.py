@@ -17,7 +17,8 @@ import requests
 
 ## Constants ##################################################################
 
-SERVERSTART_WAIT        = 1             # Time to wait for server to start
+SERVERSTART_WAIT        = 2             # Time to wait for server to start
+REMOTE_STOP_WAIT        = 2             # Time to wait for a remote server to stop
 TRANSFER_WAIT           = 5             # Time to wait for data transfers
 PROCESS_STOP_TIMEOUT    = 10            # Time to wait for program to stop
 API                     = "/api/v1.0/"  # v1.0 API url prefix
@@ -91,9 +92,6 @@ def StopClient(proc):
         else:
             proc.send_signal(signal.SIGINT)
         proc.wait(PROCESS_STOP_TIMEOUT)
-    # Give remote tasks longer to stop
-    if args.command:
-        time.sleep(1)
 
 
 # Description : Runs the server program
@@ -134,7 +132,8 @@ def StopServer(proc):
         # Shutdown a remote server, otherwise will remain running
         # even after the command use to start it has been terminated
         if args.command and args.server:
-            requests.delete("http://"+args.server+API+"shutdown")
+            print("Stopping remote server http://"+args.server+API+"shutdown")
+            requests.post("http://"+args.server+API+"shutdown")
 
         # Stop the local sever or the command used start a remote one
         if sys.platform == "win32":
@@ -142,9 +141,10 @@ def StopServer(proc):
         else:
             proc.send_signal(signal.SIGINT)
         proc.wait(PROCESS_STOP_TIMEOUT)
-    # Give remote tasks longer to stop
-    if args.command:
-        time.sleep(1)
+
+        # Give remote tasks longer to stop
+        if args.command:
+            time.sleep(REMOTE_STOP_WAIT)
 
 
 # Description : Creates a test file
@@ -261,6 +261,7 @@ def Test2():
     print("Server started with directory parameter creates the directory")
     try:
         server_proc = StartServer(args.interface, args.dest_dir)
+        time.sleep(1) # Wait for server
         if os.path.isdir(args.dest_dir):
             print("PASS: directory created")
             passed += 1
@@ -455,11 +456,12 @@ def Test7():
                 f.write('!')
             # check the file hasn't been updated before the inerval
             print("Waiting %d seconds for file update rate limiting..." % updatemax)
-            time.sleep(updatemax-2)
+            time.sleep(updatemax-TRANSFER_WAIT)
             if CompareFiles(localfile, remotefile):
                 print("Modified file updated before update max time")
                 ok = False
             else:
+                time.sleep(TRANSFER_WAIT)
                 ok = WaitAndCheckFile(localfile, remotefile, "Updated again")
 
         if ok:
@@ -532,6 +534,9 @@ if __name__ == '__main__':
 
     if args.updatemax:
         updatemax = int(args.updatemax)
+
+    if args.command:
+        TRANSFER_WAIT *= 3  # increase time for transfers with a remote sever
 
     # remove any existing source and destination directories
     if os.path.isdir(args.src_dir):
