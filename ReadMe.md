@@ -58,6 +58,15 @@ machines and run a series of confidence tests.
 * Test 7: Modify files
 * Test 8: Rename files and directories
 
+Tests can be run with the server on a remote machine if it can be started via a command such as ssh,
+and a shared directory is avialble on both machines with the same path
+
+e.g.
+
+    python3 test.py --server MyServer:5000 -interface 0.0.0.0:5000 --command "ssh MyServer python3 PythonPrograms/DirSync/server.py" Source /mnt/SharedDisc/Destination
+
+Note: Some tests may fail with high latency and/or low bandwidth networks
+
 
 History
 -------

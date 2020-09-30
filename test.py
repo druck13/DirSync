@@ -456,12 +456,12 @@ def Test7():
                 f.write('!')
             # check the file hasn't been updated before the inerval
             print("Waiting %d seconds for file update rate limiting..." % updatemax)
-            time.sleep(updatemax-TRANSFER_WAIT)
+            time.sleep(TRANSFER_WAIT)
             if CompareFiles(localfile, remotefile):
                 print("Modified file updated before update max time")
                 ok = False
             else:
-                time.sleep(TRANSFER_WAIT)
+                time.sleep(updatemax-TRANSFER_WAIT)
                 ok = WaitAndCheckFile(localfile, remotefile, "Updated again")
 
         if ok:
