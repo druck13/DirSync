@@ -39,7 +39,7 @@ e.g.
 
 On the machine containing the directory to synchronise run
 
-    python3 client.py <irectory>;
+    python3 client.py <directory>;
 
 When running both client and server will display information on synchronisation to stdout.
 
@@ -55,7 +55,7 @@ machines and run a series of confidence tests.
 * Test 4: Client with file and directories in source only
 * Test 5: Create new files and directories
 * Test 6: Delete files and directories
-* Test 7: Modify a file
+* Test 7: Modify files
 * Test 8: Rename files and directories
 
 
@@ -78,4 +78,5 @@ ToDo
                   respawn, and filing system errors need to be handled sensibly
 * Testing       - Only a limited amount of testing on Linux and Windows
                   No testing betweem client and server on different OS's
-* Security      - No authentication used in the flask protocol
+* Security      - No authentication used in the flask protocol, use https to
+                  hide data from third parties
