@@ -65,7 +65,7 @@ e.g.
 
     python3 test.py --server MyServer:5000 -interface 0.0.0.0:5000 --command "ssh MyServer python3 PythonPrograms/DirSync/server.py" Source /mnt/SharedDisc/Destination
 
-Note: Some tests may fail with high latency and/or low bandwidth networks
+Note: Some tests may fail with high latency and/or low bandwidth networks, due to fixed waits for transfers.
 
 
 History
