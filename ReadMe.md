@@ -13,7 +13,7 @@ Runs on both Linux. Requires Python 3.6 or later.
 The following Python3 packages are required, and can be installed with python -m pip install &lt;package&gt;
 
 * requests
-* watcher
+* watchdog
 * flask
 
 
