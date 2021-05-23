@@ -187,7 +187,7 @@ def WaitAndCheckFile(localfile, remotefile, description):
     mtime_ns   = os.stat(localfile).st_mtime_ns
 
     # Wait until mtime update as only set on the last block
-    while(os.stat(remotefile).st_mtime_ns != mtime_ns):
+    while os.stat(remotefile).st_mtime_ns != mtime_ns:
         time.sleep(0.001)
         elapsed = time.time() - start_time
         if elapsed > TRANSFER_WAIT:
@@ -452,7 +452,7 @@ def Test7():
             remotefile = os.path.join(args.dest_dir, "FileToReplace")
             # update a byte in the middle for a change
             with open(localfile, "r+") as f:
-                f.seek(os.stat(localfile).st_size/2)
+                f.seek(os.stat(localfile).st_size//2)
                 f.write('!')
             # check the file hasn't been updated before the inerval
             print("Waiting %d seconds for file update rate limiting..." % updatemax)

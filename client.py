@@ -192,6 +192,7 @@ def CopyFile(localfile, remotefile):
     elif response.status_code == 404:
         print("Server: Copying file: %s" % remotefile)
         # read file in to memory - wont work for massive files
+        localstat = os.stat(localfile)
         with open(localfile, "rb") as f:
             data = f.read()
 
