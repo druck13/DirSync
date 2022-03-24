@@ -29,22 +29,28 @@ blocksize = 256*1024            # Size of block for file change detection
 
 ## API Functions --------------------------------------------------------------
 
-# Description : Checks a directory exists on the server
-# Parameters  : string dirname  - directory name from URL
-# Returns     : bool            - True if Exists
 @app.route(API+"/direxists/<path:dirname>", methods=["GET"])
-def DirExists(dirname):
+def dir_exists(dirname):
+    """
+    Checks a directory exists on the server
+    :param dirname: directory name from URL
+    :type dirname: string
+    :return: True if Exists
+    :rtype: bool
+    """
     dirname = os.path.join(directory, urllib.parse.unquote(dirname))
     if not os.path.isdir(dirname):
         flask.abort(410)
     return flask.make_response("Exists", 200)
 
 
-# Description : Checks a file is identical on the serber
-# Parameters  : string dirname  - directory name from URL
-# Returns     : None
 @app.route(API+"/createdir/<path:dirname>", methods=["POST"])
-def CreateDir(dirname):
+def create_dir(dirname):
+    """
+    Checks a file is identical on the server
+    :param dirname: directory name from URL
+    :type dirname: string
+    """
     dirname = os.path.join(directory, urllib.parse.unquote(dirname))
     try:
         print("Server: Creating directory: %s" % dirname)
@@ -52,26 +58,30 @@ def CreateDir(dirname):
         return flask.make_response("Created", 200)
     except IOError as e:
         print("Server: Creating directory failed: %s :%s" % (dirname, str(e)))
-        flask.abort(403)
+        return flask.abort(403)
 
 
-# Description : Checks if a file exists and returns stat information
-# Parameters  : string filename - filename to check from url
-# Returns     : None
 @app.route(API+"/checkfile/<path:filename>", methods=["GET"])
-def CheckFile(filename):
+def check_file(filename):
+    """
+    Checks if a file exists and returns stat information
+    :param filename: filename to check from url
+    :type filename: string
+    """
     filename = os.path.join(directory, urllib.parse.unquote(filename))
     if not os.path.isfile(filename):
         flask.abort(410)
     return flask.jsonify(os.stat(filename))
 
 
-# Description : Gets checksums for each block of data in a file
-#               Sends back the file size and list of checksum values
-# Parameters  : string filename - filename from url
-# Returns     : None
 @app.route(API1+"/filesums/<path:filename>", methods=["GET"])
-def FileSums(filename):
+def file_sums(filename):
+    """
+    Gets checksums for each block of data in a file
+    Sends back the file size and list of checksum values
+    :param filename: filename from url
+    :type filename: string
+    """
     filename = os.path.join(directory, urllib.parse.unquote(filename))
 
     checksums = []
@@ -98,13 +108,15 @@ def FileSums(filename):
     return flask.jsonify(fileinfo)
 
 
-# Description : Writes a file
-#               access and mofication times come from url arguments
-#               file data is encoded in the request
-# Parameters  : string filename     - filename from url
-# Returns     : None
 @app.route(API+"/copyfile/<path:filename>", methods=["POST"])
-def CopyFile(filename):
+def copy_file(filename):
+    """
+    Writes a file
+    access and modification times come from url arguments
+    file data is encoded in the request
+    :param filename: filename from url
+    :type filename: string
+    """
     filename = os.path.join(directory, urllib.parse.unquote(filename))
     atime_ns = flask.request.args.get('atime_ns')
     mtime_ns = flask.request.args.get('mtime_ns')
@@ -119,16 +131,18 @@ def CopyFile(filename):
         return flask.make_response("Copied", 200)
     except IOError as e:
         print("Server: Copy failed: %s" % str(e))
-        flask.abort(403)
+        return flask.abort(403)
 
 
-# Description : Writes a block of a file
-#               offset, file size, access and mofication times come from url arguments
-#               file data is encoded in the request
-# Parameters  : string filename     - filename from url
-# Returns     : None
 @app.route(API1+"/copyblock/<path:filename>", methods=["POST"])
-def CopyBlock(filename):
+def copy_block(filename):
+    """
+    Writes a block of a file
+    offset, file size, access and mofication times come from url arguments
+    file data is encoded in the request
+    :param filename: filename from url
+    :type filename: string
+    """
     filename = os.path.join(directory, urllib.parse.unquote(filename))
     offset   = int(flask.request.args.get('offset'))
     filesize = flask.request.args.get('filesize')
@@ -151,14 +165,16 @@ def CopyBlock(filename):
         return flask.make_response("Written", 200)
     except IOError as e:
         print("Server: Write failed: %s" % str(e))
-        flask.abort(403)
+        return flask.abort(403)
 
 
-# Description : Deletes a file or directory on the server
-# Parameters  : string name  - file or directory name from url
-# Returns     : None
 @app.route(API+"/deleteobject/<path:name>", methods=["DELETE"])
-def DeleteObject(name):
+def delete_object(name):
+    """
+    Deletes a file or directory on the server
+    :param name: file or directory name from url
+    :type name: string
+    """
     name = os.path.join(directory, urllib.parse.unquote(name))
     try:
         if os.path.isdir(name):
@@ -172,15 +188,17 @@ def DeleteObject(name):
         return flask.make_response("Nothing to delete", 200)
     except IOError as e:
         print("Server: Deletion failed: %s" % str(e))
-        flask.abort(403)
+        return flask.abort(403)
 
 
-# Description : Renames a file or directory on the server
-#               new file name comes from url newname argument
-# Parameters  : string oldname - existing filename from url
-# Returns     : None
 @app.route(API+"/renameobject/<path:oldname>", methods=["PUT"])
-def RenameObject(oldname):
+def rename_object(oldname):
+    """
+    Renames a file or directory on the server
+    new file name comes from url newname argument
+    :param oldname: existing filename from url
+    :type oldname: string
+    """
     newname = flask.request.args.get('newname')
     if not newname:
         flask.abort(400)
@@ -196,16 +214,16 @@ def RenameObject(oldname):
         return flask.make_response("Not renamed", 200)
     except IOError as e:
         print("Server: Rename failed: %s" % str(e))
-        flask.abort(403)
+        return flask.abort(403)
 
 
-# Description : Shutdown the server
-#             : used when run over ssh by test suite as flask ignores sighup
-# Parameters  : None
-# Returns     : None
 @app.route(API+"/shutdown", methods=["POST"])
-def Shutdown():
-    # Send outself a keyboard interrupt signal to quit
+def shutdown():
+    """
+    shutdown the server
+    used when run over ssh by test suite as flask ignores sighup
+    """
+    # Send ourself a keyboard interrupt signal to quit
     os.kill(os.getpid(), signal.SIGINT)
     return flask.make_response("Shutting down", 200)
 

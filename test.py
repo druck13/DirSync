@@ -61,11 +61,16 @@ test_files = \
 ## Functions ##################################################################
 
 
-# Description : Runs the client program
-# Parameters  : string hostport - server address and port, or None
-#             : string srcdir   - source directory or None
-# Returns     : class Popen     - process structure
-def StartClient(hostport, srcdir):
+def start_client(hostport, srcdir):
+    """
+    Runs the client program
+    :param hostport: server address and port, or None
+    :type hostport: string
+    :param srcdir: source directory or None
+    :type srcdir: string
+    :return: process structure
+    :rtype: class Popen
+    """
     command = [ "python3", "client.py" ]
 
     if hostport:
@@ -81,11 +86,13 @@ def StartClient(hostport, srcdir):
     return subprocess.Popen(command)
 
 
-# Description : Stops the client by sending Ctrl+C and waits
-# Parameters  : subprocess proc - process structure of program
-# Returns     : None
-# Exceptions  : subprocess.timeoutexpired if process fails to stop
-def StopClient(proc):
+def stop_client(proc):
+    """
+    Stops the client by sending Ctrl+C and waits
+    raises subprocess.timeoutexpired if process fails to stop
+    :param proc: process structure of program
+    :type proc:
+    """
     if proc is not None:
         if sys.platform == "win32":
             proc.terminate()
@@ -94,11 +101,16 @@ def StopClient(proc):
         proc.wait(PROCESS_STOP_TIMEOUT)
 
 
-# Description : Runs the server program
-# Parameters  : string hostport - server interface or None
-#             : string dstdir   - destination directory or None
-# Returns     : class Popen     - process structure
-def StartServer(hostport, dstdir):
+def start_server(hostport, dstdir):
+    """
+    Runs the server program
+    :param hostport: server interface or None
+    :type hostport: string
+    :param dstdir: destination directory or None
+    :type dstdir: string
+    :return: process structure
+    :rtype: class Popen
+    """
     # User supplied command to start remote server
     if args.command:
         command = args.command.split()
@@ -115,21 +127,25 @@ def StartServer(hostport, dstdir):
         command.append(dstdir)
 
     print("Starting %s" % " ".join(command))
+    # pylint: disable=consider-using-with
     ret = subprocess.Popen(command)
+    # pylint: enable=consider-using-with
 
     # Wait for server to start before starting client
     time.sleep(SERVERSTART_WAIT)
 
     return ret
 
-# Description : Stops the server sending a Ctrl+C if running locally
-#               or usinf the shutdown APU for a remote server
-# Parameters  : subprocess proc - process structure of program
-# Returns     : None
-# Exceptions  : subprocess.timeoutexpired if process fails to stop
-def StopServer(proc):
+def stop_server(proc):
+    """
+    Stops the server sending a Ctrl+C if running locally
+    or using the shutdown APU for a remote server
+    raises subprocess.timeoutexpired if process fails to stop
+    :param proc: process structure of program
+    :type proc: subprocess
+    """
     if proc is not None:
-        # Shutdown a remote server, otherwise will remain running
+        # shutdown a remote server, otherwise will remain running
         # even after the command use to start it has been terminated
         if args.command and args.server:
             print("Stopping remote server http://"+args.server+API+"shutdown")
@@ -147,24 +163,28 @@ def StopServer(proc):
             time.sleep(REMOTE_STOP_WAIT)
 
 
-# Description : Creates a test file
-# Parameters  : string name - file NameError
-#               int size    - file size in KiB or None to default to 1024KiB
-#               string char - character to use as data
-# Returns     : None
-def CreateFile(name, size=1024, char='.'):
-    # 1K block of dataaaaTRANSFER_WAIT
+def create_file(name, size=1024, char='.'):
+    """
+    Creates a test file
+    :param name: filename
+    :type name: string
+    :param size: file size in KiB or None to default to 1024KiB
+    :type size: int
+    :param char: character to use as data
+    :type char: string
+    """
+    # 1K block of data
     data = char * 1024
 
-    with open(name, "w") as f:
+    with open(name, "w", encoding="utf-8") as f:
         for _ in range(size):
             f.write(data)
 
 
-# Description : Creates a test files and directories
-# Parameters  : None
-# Returns     : None
-def CreateTestFiles():
+def create_test_files():
+    """
+    Creates a test files and directories
+    """
     for adir in test_dirs:
         dirname = os.path.join(args.src_dir, adir)
         if not os.path.isdir(dirname):
@@ -173,15 +193,21 @@ def CreateTestFiles():
     for file in test_files:
         filename = os.path.join(args.src_dir, file)
         if not os.path.isfile(filename):
-            CreateFile(filename)
+            create_file(filename)
 
 
-# Description : Polls remote file until changed,
-#               checksums against local file
-#               displays timings
-# Parameters  : string localfile  - local file
-# Returns     : True if updated and matching
-def WaitAndCheckFile(localfile, remotefile, description):
+def wait_and_check_file(localfile, remotefile, description):
+    """
+    Polls remote file until changed, checksums against local file, displays timings
+    :param localfile: local filename
+    :type localfile: string
+    :param remotefile: remote filename
+    :type remotefile: string
+    :param description: description to print on failure
+    :type description: string
+    :return: True if updated and matching
+    :rtype: bool
+    """
     start_time = time.time()
     elapsed    = 0
     mtime_ns   = os.stat(localfile).st_mtime_ns
@@ -196,7 +222,7 @@ def WaitAndCheckFile(localfile, remotefile, description):
 
     time.sleep(1) # ensure files are closed
 
-    if not CompareFiles(remotefile, localfile):
+    if not compare_files(remotefile, localfile):
         print("File does not match after update (%s)" % description)
         return False
 
@@ -204,18 +230,27 @@ def WaitAndCheckFile(localfile, remotefile, description):
     return True
 
 
-# Description : Checks if two files are the same
-# Parameters  : string file1 - first filename
-#               string file2 - second filename
-# Returns     : bool         - True if the same
-def CompareFiles(file1, file2):
-    return GetDigest(file1) ==  GetDigest(file2)
+def compare_files(file1, file2):
+    """
+    Checks if two files are the same
+    :param file1: first filename
+    :type file1: string
+    :param file2: second filename
+    :type file2: string
+    :return: True if the same
+    :rtype: bool
+    """
+    return get_digest(file1) == get_digest(file2)
 
 
-# Description : Checksums a file using SHA1
-# Parameters  : string filename - the file to checksum
-# Returns     : bytes           - sha1 digest of file
-def GetDigest(filename):
+def get_digest(filename):
+    """
+    Checksums a file using SHA1
+    :param filename: the file to checksum
+    :type filename: string
+    :return: sha1 digest of file
+    :rtype: bytes
+    """
     h = hashlib.sha1()
     with open(filename, 'rb') as f:
         while True:
@@ -230,15 +265,15 @@ def GetDigest(filename):
 
 ## Test Functions #############################################################
 
-def Test1():
-    global client_proc, server_proc, run, passed, failed
+def test1():
+    global server_proc, run, passed, failed
     print("========== Test 1 ==========")
     print("Server started with no directory parameter creates the default Strorage directory")
     if args.command:
         print("SKIP: Can't run remote server without shared directory argument")
         return
     try:
-        server_proc = StartServer(args.interface, None)
+        server_proc = start_server(args.interface, None)
         if os.path.isdir(def_dest_dir):
             print("PASS: directory created")
             passed += 1
@@ -246,7 +281,7 @@ def Test1():
             print("FAIL: directory does not exist")
             failed += 1
 
-        StopServer(server_proc)
+        stop_server(server_proc)
         server_proc = None
         os.rmdir(def_dest_dir)
     except OSError as e:
@@ -255,12 +290,12 @@ def Test1():
     run += 1
 
 
-def Test2():
-    global client_proc, server_proc, run, passed, failed
+def test2():
+    global server_proc, run, passed, failed
     print("========== Test 2 ==========")
     print("Server started with directory parameter creates the directory")
     try:
-        server_proc = StartServer(args.interface, args.dest_dir)
+        server_proc = start_server(args.interface, args.dest_dir)
         time.sleep(1) # Wait for server
         if os.path.isdir(args.dest_dir):
             print("PASS: directory created")
@@ -268,7 +303,7 @@ def Test2():
         else:
             print("FAIL: directory does not exist")
             failed += 1
-        StopServer(server_proc)
+        stop_server(server_proc)
         server_proc = None
     except OSError as e:
         print("FAIL: Exception: %s" % str(e))
@@ -276,12 +311,12 @@ def Test2():
     run += 1
 
 
-def Test3():
-    global client_proc, server_proc, run, passed, failed
+def test3():
+    global client_proc, run, passed, failed
     print("========== Test 3 ==========")
     print("Client started with invalid directory fails")
     try:
-        client_proc = StartClient(args.server, "dummy")
+        client_proc = start_client(args.server, "dummy")
         time.sleep(1) # Wait for client
         if client_proc.poll() == 1:
             print("PASS: client exited")
@@ -289,7 +324,7 @@ def Test3():
         else:
             print("FAIL: did not exit")
             failed += 1
-            StopClient(client_proc)
+            stop_client(client_proc)
             client_proc = None
     except OSError as e:
         print("FAIL: Exception: %s" % str(e))
@@ -297,17 +332,17 @@ def Test3():
     run += 1
 
 
-def Test4():
+def test4():
     global client_proc, server_proc, run, passed, failed
     print("========== Test 4 ==========")
     print("Client with file and directories in source only")
-    CreateTestFiles()
+    create_test_files()
 
     try:
         if not server_proc:
-            server_proc = StartServer(args.interface, args.dest_dir)
+            server_proc = start_server(args.interface, args.dest_dir)
 
-        client_proc = StartClient(args.server, args.src_dir)
+        client_proc = start_client(args.server, args.src_dir)
 
         time.sleep(TRANSFER_WAIT)   # Wait for transfer
 
@@ -337,8 +372,8 @@ def Test4():
     run += 1
 
 
-def Test5():
-    global client_proc, server_proc, run, passed, failed
+def test5():
+    global run, passed, failed
     print("========== Test 5 ==========")
     print("Create new files and directories")
     try:
@@ -346,7 +381,7 @@ def Test5():
         new_dirs  = [ "NewDir1",  os.path.join("DirToRename", "NewDir2")  ]
 
         for file in new_files:
-            CreateFile(os.path.join(args.src_dir, file))
+            create_file(os.path.join(args.src_dir, file))
 
         for adir in new_dirs:
             os.makedirs(os.path.join(args.src_dir, adir))
@@ -380,8 +415,8 @@ def Test5():
     run += 1
 
 
-def Test6():
-    global client_proc, server_proc, run, passed, failed
+def test6():
+    global run, passed, failed
     print("========== Test 6 ==========")
     print("Delete files and directories")
     try:
@@ -408,8 +443,8 @@ def Test6():
     run += 1
 
 
-def Test7():
-    global client_proc, server_proc, run, passed, failed
+def test7():
+    global run, passed, failed
     print("========== Test 7 ==========")
     print("Modify files")
     try:
@@ -419,50 +454,50 @@ def Test7():
         if ok:
             localfile  = os.path.join(args.src_dir,  "FileToChangeStart")
             remotefile = os.path.join(args.dest_dir, "FileToChangeStart")
-            with open(localfile, "r+") as f:
+            with open(localfile, "r+", encoding="utf-8") as f:
                 f.write('!')
-            ok = WaitAndCheckFile(localfile, remotefile, "Change first byte")
+            ok = wait_and_check_file(localfile, remotefile, "Change first byte")
 
         # Add 1 byte to end of file
         if ok:
             localfile  = os.path.join(args.src_dir,  "FileToAdd1")
             remotefile = os.path.join(args.dest_dir, "FileToAdd1")
-            with open(localfile, "a") as f:
+            with open(localfile, "a", encoding="utf-8") as f:
                 f.write('!')
-            ok = WaitAndCheckFile(localfile, remotefile, "Add 1 byte")
+            ok = wait_and_check_file(localfile, remotefile, "Add 1 byte")
 
         # Remove 1 byte from end of file
         if ok:
             localfile  = os.path.join(args.src_dir,  "FileToRemove1")
             remotefile = os.path.join(args.dest_dir, "FileToRemove1")
-            with open(localfile, "r+") as f:
+            with open(localfile, "r+", encoding="utf-8") as f:
                 f.truncate(os.stat(localfile).st_size-1)
-            ok = WaitAndCheckFile(localfile, remotefile, "Remove 1 byte")
+            ok = wait_and_check_file(localfile, remotefile, "Remove 1 byte")
 
         # Entirely new file
         if ok:
             localfile  = os.path.join(args.src_dir,  "FileToReplace")
             remotefile = os.path.join(args.dest_dir, "FileToReplace")
-            CreateFile(localfile, char=":")
-            ok = WaitAndCheckFile(localfile, remotefile, "All blocks changed")
+            create_file(localfile, char=":")
+            ok = wait_and_check_file(localfile, remotefile, "All blocks changed")
 
         # Check that file updated again holds off for the update rate
         if ok:
             localfile  = os.path.join(args.src_dir,  "FileToReplace")
             remotefile = os.path.join(args.dest_dir, "FileToReplace")
             # update a byte in the middle for a change
-            with open(localfile, "r+") as f:
+            with open(localfile, "r+", encoding="utf-8") as f:
                 f.seek(os.stat(localfile).st_size//2)
                 f.write('!')
             # check the file hasn't been updated before the inerval
             print("Waiting %d seconds for file update rate limiting..." % updatemax)
             time.sleep(TRANSFER_WAIT)
-            if CompareFiles(localfile, remotefile):
+            if compare_files(localfile, remotefile):
                 print("Modified file updated before update max time")
                 ok = False
             else:
                 time.sleep(updatemax-TRANSFER_WAIT)
-                ok = WaitAndCheckFile(localfile, remotefile, "Updated again")
+                ok = wait_and_check_file(localfile, remotefile, "Updated again")
 
         if ok:
             print("PASS: files updated")
@@ -477,8 +512,8 @@ def Test7():
     run += 1
 
 
-def Test8():
-    global client_proc, server_proc, run, passed, failed
+def test8():
+    global run, passed, failed
     print("========== Test 8 ==========")
     print("Rename files and directories")
     try:
@@ -553,44 +588,44 @@ if __name__ == '__main__':
     try:
         # Initial tests with no client or server running
         # and close client and server on exit
-        if args.test==0 or args.test==1:
-            Test1()
+        if args.test in (0, 1):
+            test1()
 
-        if args.test==0 or args.test==2:
-            Test2()
+        if args.test in (0, 2):
+            test2()
 
-        if args.test==0 or args.test==3:
-            Test3()
+        if args.test in (0, 3):
+            test3()
 
-        if args.test==0 or args.test==4:
-            Test4()
+        if args.test in (0, 4):
+            test4()
 
         # Client, server and test files required for subsequent tests,
         # and left running after each
         if args.test >= 5:
-            CreateTestFiles()
+            create_test_files()
             if not server_proc:
-                server_proc = StartServer(args.interface, args.dest_dir)
+                server_proc = start_server(args.interface, args.dest_dir)
             if not client_proc:
-                client_proc = StartClient(args.server, args.src_dir)
+                client_proc = start_client(args.server, args.src_dir)
                 time.sleep(TRANSFER_WAIT)
 
-        if args.test==0 or args.test==5:
-            Test5()
+        if args.test in (0, 5):
+            test5()
 
-        if args.test==0 or args.test==6:
-            Test6()
+        if args.test in (0, 6):
+            test6()
 
-        if args.test==0 or args.test==7:
-            Test7()
+        if args.test in (0, 7):
+            test7()
 
-        if args.test==0 or args.test==8:
-            Test8()
+        if args.test in (0, 8):
+            test8()
 
     finally:
         # Stop any running programs
-        StopClient(client_proc)
-        StopServer(server_proc)
+        stop_client(client_proc)
+        stop_server(server_proc)
 
     print("========== Summary ==========")
     print("Run    : %d" % run)

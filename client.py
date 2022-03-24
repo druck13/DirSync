@@ -37,57 +37,67 @@ updatedict  = {}                    # Dictionary file update information
 
 # Description : Class to handle files system watcher events
 class Handler(FileSystemEventHandler):
-    # Description : Called for file or directory creation
-    # Parameters  : FileSystemHandler event - the event to handle
-    # Returns     : None
-    @staticmethod
-    def on_created(event):
+    def on_created(self, event):
+        """
+        Called for file or directory creation
+        :param event: FileSystemHandler event to handle
+        """
         # Only handle directories, created files will get a subsequent modified event
         if event.is_directory:
-            CreateDir(os.path.relpath(event.src_path, directory))
+            create_dir(os.path.relpath(event.src_path, directory))
 
 
-    # Description : Called for file or directory deletion
+    # Description :
     # Parameters  : FileSystemHandler event - the event to handle
     # Returns     : None
-    @staticmethod
-    def on_deleted(event):
+    def on_deleted(self, event):
+        """
+        Called for file or directory deletion
+        :param event: FileSystemHandler event to handle
+        :return:
+        """
         if event.src_path in updatedict:
             # throw away any pending updates on deletion
             del updatedict[event.src_path]
         # The server will work out to delete either a file or directory
-        DeleteObject(os.path.relpath(event.src_path, directory))
+        delete_object(os.path.relpath(event.src_path, directory))
 
 
     # Description : Called for file on directory modification
     # Parameters  : FileSystemHandler event - the event to handle
     # Returns     : None
-    @staticmethod
-    def on_modified(event):
+    def on_modified(self, event):
+        """
+        Called for file on directory modification
+        :param event: FileSystemHandler event to handle
+         """
         # Only handle files
         if not event.is_directory:
             # check if updated previously, otherwise copy now
             if event.src_path in updatedict:
                 updatedict[event.src_path]['PendingUpdate'] = True
             else:
-                CopyFile(event.src_path, os.path.relpath(event.src_path, directory))
+                copy_file(event.src_path, os.path.relpath(event.src_path, directory))
                 updatedict[event.src_path] = { 'LastUpdated' : time.time(), 'PendingUpdate' : False }
 
 
     # Description : Called for file on directory renaming
     # Parameters  : FileSystemHandler event - the event to handle
     # Returns     : None
-    @staticmethod
-    def on_moved(event):
+    def on_moved(self, event):
+        """
+        Called for file on directory renaming
+        :param event: FileSystemHandler event to handle
+        """
         # if an attempt is made to move the object out of the source directory
         # delete the object instead - doesn't seem to happen on Window or Linux
         # we do get a delete instead, but check nevertheless
         if os.path.commonprefix([event.src_path, directory]) != directory:
-            DeleteObject(os.path.relpath(event.src_path, directory))
+            delete_object(os.path.relpath(event.src_path, directory))
         else:
             # rename the object
-            RenameObject(os.path.relpath(event.src_path,  directory),
-                         os.path.relpath(event.dest_path, directory))
+            rename_object(os.path.relpath(event.src_path, directory),
+                          os.path.relpath(event.dest_path, directory))
             # rename file in update dict too
             if event.src_path in updatedict:
                 updatedict[event.dest_path] = updatedict[event.src_path]
@@ -95,10 +105,14 @@ class Handler(FileSystemEventHandler):
 
 ## Functions ##################################################################
 
-# Description : Checks a directory exists on the server
-# Parameters  : string dirname  - directory name
-# Returns     : bool            - True if Exists
-def DirExists(dirname):
+def dir_exists(dirname):
+    """
+    Checks a directory exists on the server
+    :param dirname: directory name
+    :type dirname: string
+    :return: True if Exists
+    :rtype: bool
+    """
     response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname))
     if response.ok:
         return True
@@ -108,20 +122,27 @@ def DirExists(dirname):
     return False                # Added for pylint
 
 
-# Description : Checks a file is identical on the serber
-# Parameters  : string dirname  - directory name
-# Returns     : None
-def CreateDir(dirname):
+def create_dir(dirname):
+    """
+    Checks a file is identical on the server
+    :param dirname: directory name
+    :type dirname: string
+    """
     response = requests.post(server+API+"createdir/"+urllib.parse.quote(dirname))
     if not response.ok:
         response.raise_for_status()
 
 
-# Description : Checks if a file exists and is identical on the server
-# Parameters  : string localfile    - source filename
-#               string remotefile   - destination filename
-# Returns     : bool                - True if file is on the server
-def CheckFile(localfile, remotefile):
+def check_file(localfile, remotefile):
+    """
+    Checks if a file exists and is identical on the server
+    :param localfile: source filename
+    :type localfile: string
+    :param remotefile: destination filename
+    :type remotefile: string
+    :return: True if file is on the server
+    :rtype: bool
+    """
     response = requests.get(server+API+"checkfile/"+urllib.parse.quote(remotefile))
     if response.ok:
         data       = json.loads(response.content.decode('utf-8'))
@@ -136,18 +157,20 @@ def CheckFile(localfile, remotefile):
     return False                # Added for pylint
 
 
-# Description : Copies a file to the server
-# Parameters  : string localfile    - source filename
-#               string remotefile   - destination filename
-# Returns     : None
-def CopyFile(localfile, remotefile):
+def copy_file(localfile, remotefile):
+    """
+    Copies a file to the server
+    :param localfile: source filename
+    :type localfile: string
+    :param remotefile:  destination filename
+    :type remotefile: string
+    """
     # Try v1.1 API to get checksums of each block of file
     response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile))
     if response.ok:
         remoteinfo = json.loads(response.content.decode('utf-8'))
         blocksize  = remoteinfo['Blocksize']
         block      = 0
-        data       = None
         lastsent   = False
         # Read file in blocks using blocksize from server
         with open(localfile, "rb") as f:
@@ -206,31 +229,38 @@ def CopyFile(localfile, remotefile):
         response.raise_for_status()
 
 
-# Description : Checks a file is identical on the serber
-# Parameters  : string name  - file or directory name
-# Returns     : None
-def DeleteObject(name):
+def delete_object(name):
+    """
+    Checks a file is identical on the server
+    :param name: file or directory name
+    :type name: string
+    """
     response = requests.delete(server+API+"deleteobject/"+urllib.parse.quote(name))
     if not response.ok:
         response.raise_for_status()
 
 
-# Description : Renames a file or directory on the server
-# Parameters  : string oldname - existing filename
-#               string newname - new filename
-# Returns     : None
-def RenameObject(oldname, newname):
+def rename_object(oldname, newname):
+    """
+    Renames a file or directory on the server
+    :param oldname: existing filename
+    :type oldname: string
+    :param newname: new filename
+    :type newname: string
+    """
     response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname)+
                             "?newname="+urllib.parse.quote(newname))
     if not response.ok:
         response.raise_for_status()
 
 
-# Description : Ensure each file in directory is present on server
-#               Used at client startup for initial synchronisation
-# Parameters  : string dirname     - directory to scan
-# Returns     : None
-def SyncDirectory(dirname):
+def sync_directory(dirname):
+    """
+    Ensure each file in directory is present on server
+    Used at client startup for initial synchronisation
+    :param dirname: directory to scan
+    :type dirname: string
+    """
     # Enumerate directory
     for root, dirs, files in os.walk(dirname):
         # path relative to the source directory
@@ -238,14 +268,14 @@ def SyncDirectory(dirname):
         # Handle directories
         for adir in dirs:
             remotedir = os.path.join(path, adir)
-            if not DirExists(remotedir):
-                CreateDir(remotedir)
+            if not dir_exists(remotedir):
+                create_dir(remotedir)
         # Handle files
         for file in files:
             localfile  = os.path.join(root, file)
             remotefile = os.path.join(path, file)
-            if not CheckFile(localfile, remotefile):
-                CopyFile(localfile, remotefile)
+            if not check_file(localfile, remotefile):
+                copy_file(localfile, remotefile)
 
 ## Main #######################################################################
 
@@ -275,7 +305,7 @@ if __name__ == '__main__':
             time.sleep(1)
 
     # Initial Sync of directory on starting
-    SyncDirectory(directory)
+    sync_directory(directory)
 
     # Start watching the directory
     event_handler = Handler()
@@ -293,7 +323,7 @@ if __name__ == '__main__':
                 if time.time() - updatedict[name]['LastUpdated'] >= args.updatemax:
                     if updatedict[name]['PendingUpdate']:
                         # Perform the pending update, and record last update time
-                        CopyFile(name, os.path.relpath(name, directory))
+                        copy_file(name, os.path.relpath(name, directory))
                         updatedict[name] = { 'LastUpdated' : time.time(), 'PendingUpdate' : False }
                     else:
                         # No updates, so forget file
