@@ -47,9 +47,6 @@ class Handler(FileSystemEventHandler):
             create_dir(os.path.relpath(event.src_path, directory))
 
 
-    # Description :
-    # Parameters  : FileSystemHandler event - the event to handle
-    # Returns     : None
     def on_deleted(self, event):
         """
         Called for file or directory deletion
@@ -63,9 +60,6 @@ class Handler(FileSystemEventHandler):
         delete_object(os.path.relpath(event.src_path, directory))
 
 
-    # Description : Called for file on directory modification
-    # Parameters  : FileSystemHandler event - the event to handle
-    # Returns     : None
     def on_modified(self, event):
         """
         Called for file on directory modification
@@ -81,9 +75,6 @@ class Handler(FileSystemEventHandler):
                 updatedict[event.src_path] = { 'LastUpdated' : time.time(), 'PendingUpdate' : False }
 
 
-    # Description : Called for file on directory renaming
-    # Parameters  : FileSystemHandler event - the event to handle
-    # Returns     : None
     def on_moved(self, event):
         """
         Called for file on directory renaming
