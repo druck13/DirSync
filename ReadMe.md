@@ -8,12 +8,12 @@ Simple synchronisation of a local directory with a remote directory, in the styl
 
 Installation
 ------------
-Runs on both Linux. Requires Python 3.6 or later.
+Runs on both Linux and Windows. Requires Python 3.6 or later.
 
 The following Python3 packages are required, and can be installed with python -m pip install &lt;package&gt;
 
 * requests
-* watcher
+* watchdog
 * flask
 
 
