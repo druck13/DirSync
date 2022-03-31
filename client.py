@@ -194,9 +194,9 @@ def copy_file(localfile, remotefile):
                     # Add file information on the last block
                     if last:
                         localstat = os.stat(localfile)
-                        query.update({"filesize" : str(localstat.st_size),
-                                      "atime_ns" : str(localstat.st_atime_ns),
-                                      "mtime_ns" : str(localstat.st_mtime_ns)})
+                        query.update({"filesize" : localstat.st_size,
+                                      "atime_ns" : localstat.st_atime_ns,
+                                      "mtime_ns" : localstat.st_mtime_ns})
                         lastsent  = True
 
                     #send the block of data
@@ -210,10 +210,10 @@ def copy_file(localfile, remotefile):
         if not lastsent:
             localstat = os.stat(localfile)
             url       = server+API1+"copyblock/"+urllib.parse.quote(remotefile)
-            query     = { "offset"   : str(block*blocksize),
-                          "filesize" : str(localstat.st_size),
-                          "atime_ns" : str(localstat.st_atime_ns),
-                          "mtime_ns" : str(localstat.st_mtime_ns)}
+            query     = { "offset"   : block*blocksize,
+                          "filesize" : localstat.st_size,
+                          "atime_ns" : localstat.st_atime_ns,
+                          "mtime_ns" : localstat.st_mtime_ns }
             response3 = requests.post(url, params=query)
             if not response3.ok:
                 response3.raise_for_status()
@@ -227,8 +227,8 @@ def copy_file(localfile, remotefile):
             data = f.read()
 
         response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile),
-                                  params={ "atime_ns" : str(localstat.st_atime_ns),
-                                           "mtime_ns" : str(localstat.st_mtime_ns) },
+                                  params={ "atime_ns" : localstat.st_atime_ns,
+                                           "mtime_ns" : localstat.st_mtime_ns },
                                   data=data)
 
     # Failure of either API will reach here
