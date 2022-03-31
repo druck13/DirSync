@@ -189,15 +189,18 @@ def copy_file(localfile, remotefile):
                 # If larger than remote file, or checksum doesn't match
                 if block >= len(remoteinfo['Checksums']) \
                 or h.hexdigest() != remoteinfo['Checksums'][block]:
-                    url = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)
+                    url    = server+API1+"copyblock/"+urllib.parse.quote(remotefile)
+                    query = { "offset" : str(block*blocksize) }
                     # Add file information on the last block
                     if last:
                         localstat = os.stat(localfile)
-                        url      += "&filesize="+str(localstat.st_size)+"&atime_ns="+str(localstat.st_atime_ns)+"&mtime_ns="+str(localstat.st_mtime_ns)
+                        query.update({"filesize" : str(localstat.st_size),
+                                      "atime_ns" : str(localstat.st_atime_ns),
+                                      "mtime_ns" : str(localstat.st_mtime_ns)})
                         lastsent  = True
 
                     #send the block of data
-                    response2 = requests.post(url, data=data)
+                    response2 = requests.post(url, data=data, params=query)
                     if not response2.ok:
                         response2.raise_for_status()
 
@@ -206,8 +209,12 @@ def copy_file(localfile, remotefile):
         # send the file information without any data
         if not lastsent:
             localstat = os.stat(localfile)
-            url       = server+API1+"copyblock/"+urllib.parse.quote(remotefile)+"?offset="+str(block*blocksize)+ "&filesize="+str(localstat.st_size)+"&atime_ns="+str(localstat.st_atime_ns)+"&mtime_ns="+str(localstat.st_mtime_ns)
-            response3 = requests.post(url)
+            url       = server+API1+"copyblock/"+urllib.parse.quote(remotefile)
+            query     = { "offset"   : str(block*blocksize),
+                          "filesize" : str(localstat.st_size),
+                          "atime_ns" : str(localstat.st_atime_ns),
+                          "mtime_ns" : str(localstat.st_mtime_ns)}
+            response3 = requests.post(url, params=query)
             if not response3.ok:
                 response3.raise_for_status()
 
@@ -219,9 +226,9 @@ def copy_file(localfile, remotefile):
         with open(localfile, "rb") as f:
             data = f.read()
 
-        response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile)+
-                                  "?atime_ns="+str(localstat.st_atime_ns)+
-                                  "&mtime_ns="+str(localstat.st_mtime_ns),
+        response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile),
+                                  params={ "atime_ns" : str(localstat.st_atime_ns),
+                                           "mtime_ns" : str(localstat.st_mtime_ns) },
                                   data=data)
 
     # Failure of either API will reach here
@@ -248,8 +255,8 @@ def rename_object(oldname, newname):
     :param newname: new filename
     :type newname: string
     """
-    response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname)+
-                            "?newname="+urllib.parse.quote(newname))
+    response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname),
+                            params={"newname" : urllib.parse.quote(newname)})
     if not response.ok:
         response.raise_for_status()
 
