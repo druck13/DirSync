@@ -118,7 +118,7 @@ def dir_exists(dirname):
         return True
     if response.status_code == 410:
         return False
-    response.raise_for_status() # Doesn't return
+    response.raise_for_status() # Doesn't return if error
     return False                # Added for pylint
 
 
@@ -129,8 +129,7 @@ def create_dir(dirname):
     :type dirname: string
     """
     response = requests.post(server+API+"createdir/"+urllib.parse.quote(dirname))
-    if not response.ok:
-        response.raise_for_status()
+    response.raise_for_status()
 
 
 def check_file(localfile, remotefile):
@@ -153,7 +152,7 @@ def check_file(localfile, remotefile):
                remotestat.st_mtime == localstat.st_mtime
     if response.status_code == 410:
         return False
-    response.raise_for_status() # Doesn't return
+    response.raise_for_status() # Doesn't return if error
     return False                # Added for pylint
 
 
@@ -201,8 +200,7 @@ def copy_file(localfile, remotefile):
 
                     #send the block of data
                     response2 = requests.post(url, data=data, params=query)
-                    if not response2.ok:
-                        response2.raise_for_status()
+                    response2.raise_for_status()
 
                 block += 1
         # if the last block wasn't sent (file was a multiple of block size)
@@ -215,8 +213,7 @@ def copy_file(localfile, remotefile):
                           "atime_ns" : localstat.st_atime_ns,
                           "mtime_ns" : localstat.st_mtime_ns }
             response3 = requests.post(url, params=query)
-            if not response3.ok:
-                response3.raise_for_status()
+            response3.raise_for_status()
 
     # fallback copying while file with v1.0 API
     elif response.status_code == 404:
@@ -232,8 +229,7 @@ def copy_file(localfile, remotefile):
                                   data=data)
 
     # Failure of either API will reach here
-    if not response.ok:
-        response.raise_for_status()
+    response.raise_for_status()
 
 
 def delete_object(name):
@@ -243,8 +239,7 @@ def delete_object(name):
     :type name: string
     """
     response = requests.delete(server+API+"deleteobject/"+urllib.parse.quote(name))
-    if not response.ok:
-        response.raise_for_status()
+    response.raise_for_status()
 
 
 def rename_object(oldname, newname):
@@ -257,8 +252,7 @@ def rename_object(oldname, newname):
     """
     response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname),
                             params={"newname" : urllib.parse.quote(newname)})
-    if not response.ok:
-        response.raise_for_status()
+    response.raise_for_status()
 
 
 def sync_directory(dirname):
