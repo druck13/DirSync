@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 ###############################################################################
-## Directory Synchroniation Server
+## Directory Synchronization Server
 ##
 ## (C) 2020 David Ruck
 ###############################################################################
@@ -222,7 +222,7 @@ class DirSyncServer:
         shutdown the server
         used when run over ssh by test suite as flask ignores sighup
         """
-        # Send ourself a keyboard interrupt signal to quit
+        # Send ourselves a keyboard interrupt signal to quit
         os.kill(os.getpid(), signal.SIGINT)
         return flask.make_response("Shutting down", 200)
 

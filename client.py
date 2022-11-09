@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 ###############################################################################
-## Directory Synchroniation Client
+## Directory Synchronization Client
 ##
 ## (C) 2020 David Ruck
 ###############################################################################
@@ -90,8 +90,8 @@ class Handler(FileSystemEventHandler):
         :param event: FileSystemHandler event to handle
         """
         # if an attempt is made to move the object out of the source directory
-        # delete the object instead - doesn't seem to happen on Window or Linux
-        # we do get a delete instead, but check nevertheless
+        # delete the object instead - doesn't seem to happen on Windows or Linux
+        # we do get a delete command instead, but check nevertheless
         if os.path.commonprefix([event.src_path, directory]) != directory:
             delete_object(os.path.relpath(event.src_path, directory))
         else:
@@ -218,7 +218,7 @@ def copy_file(localfile, remotefile):
     # fallback copying while file with v1.0 API
     elif response.status_code == 404:
         print("Server: Copying file: %s" % remotefile)
-        # read file in to memory - wont work for massive files
+        # read file in to memory - won't work for massive files
         localstat = os.stat(localfile)
         with open(localfile, "rb") as f:
             data = f.read()
@@ -280,7 +280,8 @@ def sync_directory(dirname):
 
 ## Main #######################################################################
 
-if __name__ == '__main__':
+def main():
+    global server, directory
     parser = argparse.ArgumentParser(description="Directory Synchronisation Client v1.2")
     parser.add_argument("-s", "--server",              default=server,     help="Server host:port, defaults to "+server)
     parser.add_argument("-u", "--updatemax", type=int, default=updatemax,  help="Only update a file once per interval, defaults to "+str(updatemax)+" seconds")
@@ -299,7 +300,7 @@ if __name__ == '__main__':
     print("Client: Waiting for server to start...")
     while True:
         try:
-            response = requests.get(server+API)
+            requests.get(server+API)
             # proceed after any response
             break
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
@@ -334,5 +335,8 @@ if __name__ == '__main__':
         print("Client: Terminated by the user")
     finally:
         observer.join()
+
+if __name__ == '__main__':
+    main()
 
 ## EOF ########################################################################

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 ###############################################################################
-## Directory Synchroniation Test Suite
+## Directory Synchronization Test Suite
 ##
 ## (C) 2020 David Ruck
 ###############################################################################
@@ -107,7 +107,7 @@ def start_server(hostport, dstdir):
     :param hostport: server interface or None
     :type hostport: string
     :param dstdir: destination directory or None
-    :type dstdir: string
+    :type dstdir: string or None
     :return: process structure
     :rtype: class Popen
     """
@@ -141,7 +141,7 @@ def stop_server(proc):
     Stops the server sending a Ctrl+C if running locally
     or using the shutdown APU for a remote server
     raises subprocess.timeoutexpired if process fails to stop
-    :param proc: process structure of program
+    :param proc: subprocess.Popen
     :type proc: subprocess
     """
     if proc is not None:
@@ -560,7 +560,8 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--test",         type=int,   default=0,          help="Test number to run, defaults to all tests")
     parser.add_argument("-s", "--server",                                       help="Server host:port")
     parser.add_argument("-i", "--interface",                                    help="Interface for server to bind to")
-    parser.add_argument("-c", "--command",                                      help="Command to use when starting server, e.g. \"ssh hostname python3 path/server.py\"")
+    parser.add_argument("-c", "--command",                                      help="Command to use when starting server," \
+                                                                                     "e.g. \"ssh hostname python3 path/server.py\"")
     parser.add_argument("-b", "--blocksize",                                    help="Block size for file change detection for server")
     parser.add_argument("-u", "--updatemax",                                    help="Only update a file once per interval for client")
     parser.add_argument("src_dir",              nargs='?',  default=src_dir,    help="directory to synchronise from, defaults to "+src_dir)

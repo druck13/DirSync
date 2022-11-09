@@ -59,7 +59,7 @@ machines and run a series of confidence tests.
 * Test 8: Rename files and directories
 
 Tests can be run with the server on a remote machine if it can be started via a command such as ssh,
-and a shared directory is avialble on both machines with the same path
+and a shared directory is available on both machines with the same path
 
 e.g.
 
@@ -86,6 +86,6 @@ ToDo
                   better. The client needs to be able to wait for the server to
                   respawn, and filing system errors need to be handled sensibly
 * Testing       - Only a limited amount of testing on Linux and Windows
-                  No testing betweem client and server on different OS's
+                  No testing between client and server on different OS's
 * Security      - No authentication used in the flask protocol, use https to
                   hide data from third parties
