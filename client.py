@@ -27,6 +27,7 @@ API1        = "/api/v1.1/"          # v1.1 API url prefix
 server      = "localhost:5000"      # DirSync server host:port
 directory   = ""                    # directory to synchronise
 updatemax   = 60                    # Default file update limit in seconds
+timeout     = 10                    # request timeout in seconds
 
 updatedict  = {}                    # Dictionary file update information
                                     # { <filename> : { 'LastUpdated'   : <time>,
@@ -113,7 +114,7 @@ def dir_exists(dirname):
     :return: True if Exists
     :rtype: bool
     """
-    response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname))
+    response = requests.get(server+API+"direxists/"+urllib.parse.quote(dirname), timeout=timeout)
     if response.ok:
         return True
     if response.status_code == 410:
@@ -128,7 +129,7 @@ def create_dir(dirname):
     :param dirname: directory name
     :type dirname: string
     """
-    response = requests.post(server+API+"createdir/"+urllib.parse.quote(dirname))
+    response = requests.post(server+API+"createdir/"+urllib.parse.quote(dirname), timeout=timeout)
     response.raise_for_status()
 
 
@@ -142,7 +143,7 @@ def check_file(localfile, remotefile):
     :return: True if file is on the server
     :rtype: bool
     """
-    response = requests.get(server+API+"checkfile/"+urllib.parse.quote(remotefile))
+    response = requests.get(server+API+"checkfile/"+urllib.parse.quote(remotefile), timeout=timeout)
     if response.ok:
         data       = json.loads(response.content.decode('utf-8'))
         localstat  = os.stat(localfile)
@@ -165,7 +166,7 @@ def copy_file(localfile, remotefile):
     :type remotefile: string
     """
     # Try v1.1 API to get checksums of each block of file
-    response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile))
+    response = requests.get(server+API1+"filesums/"+urllib.parse.quote(remotefile), timeout=timeout)
     if response.ok:
         remoteinfo = json.loads(response.content.decode('utf-8'))
         blocksize  = remoteinfo['Blocksize']
@@ -199,7 +200,7 @@ def copy_file(localfile, remotefile):
                         lastsent  = True
 
                     #send the block of data
-                    response2 = requests.post(url, data=data, params=query)
+                    response2 = requests.post(url, data=data, params=query, timeout=timeout)
                     response2.raise_for_status()
 
                 block += 1
@@ -212,7 +213,7 @@ def copy_file(localfile, remotefile):
                           "filesize" : localstat.st_size,
                           "atime_ns" : localstat.st_atime_ns,
                           "mtime_ns" : localstat.st_mtime_ns }
-            response3 = requests.post(url, params=query)
+            response3 = requests.post(url, params=query, timeout=timeout)
             response3.raise_for_status()
 
     # fallback copying while file with v1.0 API
@@ -226,7 +227,8 @@ def copy_file(localfile, remotefile):
         response  = requests.post(server+API+"copyfile/"+urllib.parse.quote(remotefile),
                                   params={ "atime_ns" : localstat.st_atime_ns,
                                            "mtime_ns" : localstat.st_mtime_ns },
-                                  data=data)
+                                  data=data,
+                                  timeout=timeout)
 
     # Failure of either API will reach here
     response.raise_for_status()
@@ -238,7 +240,7 @@ def delete_object(name):
     :param name: file or directory name
     :type name: string
     """
-    response = requests.delete(server+API+"deleteobject/"+urllib.parse.quote(name))
+    response = requests.delete(server+API+"deleteobject/"+urllib.parse.quote(name), timeout=timeout)
     response.raise_for_status()
 
 
@@ -251,7 +253,8 @@ def rename_object(oldname, newname):
     :type newname: string
     """
     response = requests.put(server+API+"renameobject/"+urllib.parse.quote(oldname),
-                            params={"newname" : urllib.parse.quote(newname)})
+                            params={"newname" : urllib.parse.quote(newname)},
+                            timeout=timeout)
     response.raise_for_status()
 
 
@@ -300,7 +303,7 @@ def main():
     print("Client: Waiting for server to start...")
     while True:
         try:
-            requests.get(server+API)
+            requests.get(server+API, timeout=timeout)
             # proceed after any response
             break
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):

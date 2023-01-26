@@ -149,7 +149,7 @@ def stop_server(proc):
         # even after the command use to start it has been terminated
         if args.command and args.server:
             print("Stopping remote server http://"+args.server+API+"shutdown")
-            requests.post("http://"+args.server+API+"shutdown")
+            requests.post("http://"+args.server+API+"shutdown", timeout=10)
 
         # Stop the local sever or the command used start a remote one
         if sys.platform == "win32":
