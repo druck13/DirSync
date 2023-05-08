@@ -208,14 +208,14 @@ def wait_and_check_file(localfile, remotefile, description):
     :return: True if updated and matching
     :rtype: bool
     """
-    start_time = time.time()
+    start_time = time.monotonic()
     elapsed    = 0
     mtime_ns   = os.stat(localfile).st_mtime_ns
 
     # Wait until mtime update as only set on the last block
     while os.stat(remotefile).st_mtime_ns != mtime_ns:
         time.sleep(0.001)
-        elapsed = time.time() - start_time
+        elapsed = time.monotonic() - start_time
         if elapsed > TRANSFER_WAIT:
             print("File has not been updated (%s)" % description)
             return False

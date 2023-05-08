@@ -79,7 +79,7 @@ class Handler(FileSystemEventHandler):
                 updatedict[event.src_path]['PendingUpdate'] = True
             else:
                 copy_file(event.src_path, os.path.relpath(event.src_path, directory))
-                updatedict[event.src_path] = { 'LastUpdated' : time.time(), 'PendingUpdate' : False }
+                updatedict[event.src_path] = { 'LastUpdated' : time.monotonic(), 'PendingUpdate' : False }
 
 
     # Description : Called for file on directory renaming
@@ -325,7 +325,7 @@ def main():
             # scan the update dict
             for name in list(updatedict):
                 # act after the update interval has elapsed
-                if time.time() - updatedict[name]['LastUpdated'] >= args.updatemax:
+                if time.monotonic() - updatedict[name]['LastUpdated'] >= args.updatemax:
                     if updatedict[name]['PendingUpdate']:
                         # Perform the pending update, and record last update time
                         copy_file(name, os.path.relpath(name, directory))
